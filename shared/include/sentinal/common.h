@@ -17,6 +17,11 @@ extern "C" {
 #define SENTINAL_VERSION_MINOR 1
 #define SENTINAL_VERSION_PATCH 0
 
+/* Target identifier */
+typedef uint64_t SentinalTargetId;
+#define SENTINAL_INVALID_TARGET_ID 0ULL
+
+
 /* Standard status and error codes */
 typedef enum SentinalStatus {
     SENTINAL_STATUS_SUCCESS = 0,

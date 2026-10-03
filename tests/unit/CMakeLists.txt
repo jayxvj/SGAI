@@ -42,3 +42,17 @@ add_test(
     COMMAND SentinelServiceCoreTests
 )
 set_tests_properties(SentinelService_CoreTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalTargetModelTests
+    target_model_tests.cpp
+)
+target_link_libraries(SentinalTargetModelTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_TargetModelTests
+    COMMAND SentinalTargetModelTests
+)
+set_tests_properties(Sentinal_TargetModelTests PROPERTIES LABELS "unit")
+

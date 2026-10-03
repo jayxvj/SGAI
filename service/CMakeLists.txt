@@ -3,6 +3,7 @@ add_library(SentinelServiceCore STATIC
     src/logger.cpp
     src/policy_engine.cpp
     src/service_core.cpp
+    src/target.cpp
 )
 
 target_include_directories(SentinelServiceCore PUBLIC

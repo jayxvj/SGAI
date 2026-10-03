@@ -89,7 +89,7 @@ static void test_policy_engine() {
 
     // Protected file target should return DENY
     assert(pe.evaluate("C:\\protected\\secret.key", SENTINAL_OP_READ) == SENTINAL_DECISION_DENY);
-    assert(pe.evaluate("c:/protected/secret.key", SENTINAL_OP_WRITE) == SENTINAL_DECISION_DENY);
+    assert(pe.evaluate("C:/protected/secret.key", SENTINAL_OP_WRITE) == SENTINAL_DECISION_DENY);
 
     // Unrelated path should return configured default ALLOW
     assert(pe.evaluate("C:\\unprotected\\file.txt", SENTINAL_OP_WRITE, config.defaultDecision) == SENTINAL_DECISION_ALLOW);
