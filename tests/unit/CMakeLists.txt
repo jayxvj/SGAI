@@ -26,3 +26,16 @@ add_test(
     NAME SentinalShared_CPP_Compatibility
     COMMAND SentinalSharedCppCompat
 )
+
+add_executable(SentinelServiceCoreTests
+    service_core_tests.cpp
+)
+target_link_libraries(SentinelServiceCoreTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME SentinelService_CoreTests
+    COMMAND SentinelServiceCoreTests
+)
+
