@@ -276,3 +276,16 @@ add_test(
     COMMAND SentinalProtectionAuditEventTests
 )
 set_tests_properties(Sentinal_ProtectionAuditEventTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalProtectionServiceFacadeTests
+    protection_service_facade_tests.cpp
+)
+target_link_libraries(SentinalProtectionServiceFacadeTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_ProtectionServiceFacadeTests
+    COMMAND SentinalProtectionServiceFacadeTests
+)
+set_tests_properties(Sentinal_ProtectionServiceFacadeTests PROPERTIES LABELS "unit")
