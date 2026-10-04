@@ -302,3 +302,42 @@ add_test(
     COMMAND SentinalWindowsProtectionEnforcementAdapterTests
 )
 set_tests_properties(Sentinal_WindowsProtectionEnforcementAdapterTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverContractCCompat
+    driver_contract_c_compatibility.c
+)
+target_link_libraries(SentinalDriverContractCCompat PRIVATE
+    SentinalDriverContract
+)
+
+add_test(
+    NAME Sentinal_DriverContract_C_Compatibility
+    COMMAND SentinalDriverContractCCompat
+)
+set_tests_properties(Sentinal_DriverContract_C_Compatibility PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverContractCppCompat
+    driver_contract_cpp_compatibility.cpp
+)
+target_link_libraries(SentinalDriverContractCppCompat PRIVATE
+    SentinalDriverContract
+)
+
+add_test(
+    NAME Sentinal_DriverContract_CPP_Compatibility
+    COMMAND SentinalDriverContractCppCompat
+)
+set_tests_properties(Sentinal_DriverContract_CPP_Compatibility PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverContractTests
+    driver_contract_tests.cpp
+)
+target_link_libraries(SentinalDriverContractTests PRIVATE
+    SentinalDriverContract
+)
+
+add_test(
+    NAME Sentinal_DriverContractTests
+    COMMAND SentinalDriverContractTests
+)
+set_tests_properties(Sentinal_DriverContractTests PROPERTIES LABELS "unit")
