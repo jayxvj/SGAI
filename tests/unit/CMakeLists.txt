@@ -393,3 +393,29 @@ add_test(
     COMMAND SentinalDriverCommunicationServiceTests
 )
 set_tests_properties(Sentinal_DriverCommunicationServiceTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalWindowsDriverTransportTests
+    windows_driver_transport_tests.cpp
+)
+target_link_libraries(SentinalWindowsDriverTransportTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_WindowsDriverTransportTests
+    COMMAND SentinalWindowsDriverTransportTests
+)
+set_tests_properties(Sentinal_WindowsDriverTransportTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalWindowsDriverCommunicationTests
+    windows_driver_communication_tests.cpp
+)
+target_link_libraries(SentinalWindowsDriverCommunicationTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_WindowsDriverCommunicationTests
+    COMMAND SentinalWindowsDriverCommunicationTests
+)
+set_tests_properties(Sentinal_WindowsDriverCommunicationTests PROPERTIES LABELS "unit")

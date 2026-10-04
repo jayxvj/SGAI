@@ -22,6 +22,9 @@ add_library(SentinelServiceCore STATIC
     src/service_core.cpp
     src/target.cpp
     src/test_driver_communication.cpp
+    src/test_windows_driver_transport.cpp
+    src/windows_driver_communication.cpp
+    src/windows_driver_transport.cpp
     src/windows_file_operation_observation.cpp
     src/windows_file_operation_observer.cpp
     src/windows_operation_adapter.cpp
