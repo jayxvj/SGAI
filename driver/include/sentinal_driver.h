@@ -54,14 +54,28 @@ SentinalDriverUnload(
 );
 
 /* =========================================================================
- * Pre-operation callback
+ * Pre-operation observation callbacks (pass-through)
  *
- * Registered for all operations; currently passes everything through.
- * Future phases will add policy evaluation here.
+ * Registered for observed operations; currently pass everything through.
+ * Future phases will add event extraction and user-mode communication.
  * ========================================================================= */
 
 FLT_PREOP_CALLBACK_STATUS
-SentinalPreOperationCallback(
+SentinalPreCreate(
+    _Inout_ PFLT_CALLBACK_DATA    Data,
+    _In_    PCFLT_RELATED_OBJECTS FltObjects,
+    _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
+);
+
+FLT_PREOP_CALLBACK_STATUS
+SentinalPreWrite(
+    _Inout_ PFLT_CALLBACK_DATA    Data,
+    _In_    PCFLT_RELATED_OBJECTS FltObjects,
+    _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
+);
+
+FLT_PREOP_CALLBACK_STATUS
+SentinalPreSetInformation(
     _Inout_ PFLT_CALLBACK_DATA    Data,
     _In_    PCFLT_RELATED_OBJECTS FltObjects,
     _Flt_CompletionContext_Outptr_ PVOID *CompletionContext

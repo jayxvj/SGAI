@@ -3,21 +3,25 @@
  *
  * Sentinal AI minifilter driver — DriverEntry and filter lifecycle.
  *
- * Phase 1.24 — Windows Minifilter Foundation
+ * Phase 1.25 — Kernel Minifilter Observation
  *
  * Responsibilities:
  *   - Register the minifilter with Filter Manager (FltRegisterFilter)
  *   - Start filtering (FltStartFiltering)
  *   - Unregister on unload (FltUnregisterFilter)
- *   - Provide a pass-through pre-operation callback for all I/O
+ *   - Observe IRP_MJ_CREATE, IRP_MJ_WRITE, IRP_MJ_SET_INFORMATION
+ *     via pass-through pre-operation callbacks (FLT_PREOP_SUCCESS_NO_CALLBACK)
  *
  * This file contains NO:
- *   - file blocking or access-denial logic
+ *   - file blocking or access-denial logic (no FLT_PREOP_COMPLETE)
+ *   - asynchronous completion (no FLT_PREOP_PENDING)
+ *   - parameter modification or redirection
  *   - policy evaluation
  *   - encryption / decryption
  *   - communication port (FltCreateCommunicationPort)
+ *   - user-mode messaging (FltSendMessage)
  *   - IOCTL handling
- *   - user-mode messaging
+ *   - filesystem operations (no ZwCreateFile / ZwWriteFile / ZwReadFile)
  */
 
 #include "sentinal_driver.h"
@@ -31,13 +35,32 @@ PFLT_FILTER g_SentinalFilter = NULL;
 /* =========================================================================
  * Operation registration table
  *
- * A single entry covers all major function codes (IRP_MJ_OPERATION_END
- * sentinel terminates the table). The pre-operation callback is pass-through.
+ * Registers observation callbacks for IRP_MJ_CREATE, IRP_MJ_WRITE, and
+ * IRP_MJ_SET_INFORMATION. Terminated with IRP_MJ_OPERATION_END.
+ * All callbacks return FLT_PREOP_SUCCESS_NO_CALLBACK (pure pass-through).
  * ========================================================================= */
 
 static const FLT_OPERATION_REGISTRATION c_OperationCallbacks[] = {
     {
-        IRP_MJ_OPERATION_END  /* table terminator — no callbacks registered yet */
+        IRP_MJ_CREATE,
+        0,
+        SentinalPreCreate,
+        NULL
+    },
+    {
+        IRP_MJ_WRITE,
+        0,
+        SentinalPreWrite,
+        NULL
+    },
+    {
+        IRP_MJ_SET_INFORMATION,
+        0,
+        SentinalPreSetInformation,
+        NULL
+    },
+    {
+        IRP_MJ_OPERATION_END
     }
 };
 
@@ -128,14 +151,18 @@ SentinalDriverUnload(
 }
 
 /* =========================================================================
- * SentinalPreOperationCallback
+ * Pre-operation observation callbacks
  *
- * Pass-through pre-operation callback.
- * Reserved for future policy evaluation phases.
+ * All callbacks in this phase are observation-only pass-through:
+ *   - Safely receive callback parameters
+ *   - Do not allocate memory or perform expensive processing
+ *   - Do not access user buffers or dereference unsafe pointers
+ *   - Do not perform filesystem operations
+ *   - Always return FLT_PREOP_SUCCESS_NO_CALLBACK
  * ========================================================================= */
 
 FLT_PREOP_CALLBACK_STATUS
-SentinalPreOperationCallback(
+SentinalPreCreate(
     _Inout_ PFLT_CALLBACK_DATA    Data,
     _In_    PCFLT_RELATED_OBJECTS FltObjects,
     _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
@@ -145,6 +172,36 @@ SentinalPreOperationCallback(
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
 
-    /* ponytail: pass-through — policy evaluation added in a future phase */
+    /* ponytail: observation-only — pass through without altering outcome */
+    return FLT_PREOP_SUCCESS_NO_CALLBACK;
+}
+
+FLT_PREOP_CALLBACK_STATUS
+SentinalPreWrite(
+    _Inout_ PFLT_CALLBACK_DATA    Data,
+    _In_    PCFLT_RELATED_OBJECTS FltObjects,
+    _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
+)
+{
+    UNREFERENCED_PARAMETER(Data);
+    UNREFERENCED_PARAMETER(FltObjects);
+    UNREFERENCED_PARAMETER(CompletionContext);
+
+    /* ponytail: observation-only — pass through without altering outcome */
+    return FLT_PREOP_SUCCESS_NO_CALLBACK;
+}
+
+FLT_PREOP_CALLBACK_STATUS
+SentinalPreSetInformation(
+    _Inout_ PFLT_CALLBACK_DATA    Data,
+    _In_    PCFLT_RELATED_OBJECTS FltObjects,
+    _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
+)
+{
+    UNREFERENCED_PARAMETER(Data);
+    UNREFERENCED_PARAMETER(FltObjects);
+    UNREFERENCED_PARAMETER(CompletionContext);
+
+    /* ponytail: observation-only — pass through without altering outcome */
     return FLT_PREOP_SUCCESS_NO_CALLBACK;
 }
