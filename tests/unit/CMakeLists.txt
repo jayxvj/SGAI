@@ -198,3 +198,16 @@ add_test(
     COMMAND SentinalWindowsOperationAdapterTests
 )
 set_tests_properties(Sentinal_WindowsOperationAdapterTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalWindowsProtectionEventTests
+    windows_protection_event_tests.cpp
+)
+target_link_libraries(SentinalWindowsProtectionEventTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_WindowsProtectionEventTests
+    COMMAND SentinalWindowsProtectionEventTests
+)
+set_tests_properties(Sentinal_WindowsProtectionEventTests PROPERTIES LABELS "unit")
