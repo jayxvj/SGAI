@@ -12,6 +12,7 @@ add_library(SentinelServiceCore STATIC
     src/protection_request.cpp
     src/service_core.cpp
     src/target.cpp
+    src/windows_path_adapter.cpp
 )
 
 target_include_directories(SentinelServiceCore PUBLIC

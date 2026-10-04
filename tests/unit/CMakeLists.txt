@@ -172,3 +172,16 @@ add_test(
     COMMAND SentinalProtectionOperationAdapterTests
 )
 set_tests_properties(Sentinal_ProtectionOperationAdapterTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalWindowsPathAdapterTests
+    windows_path_adapter_tests.cpp
+)
+target_link_libraries(SentinalWindowsPathAdapterTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_WindowsPathAdapterTests
+    COMMAND SentinalWindowsPathAdapterTests
+)
+set_tests_properties(Sentinal_WindowsPathAdapterTests PROPERTIES LABELS "unit")
