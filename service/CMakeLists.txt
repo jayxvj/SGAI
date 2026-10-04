@@ -14,6 +14,8 @@ add_library(SentinelServiceCore STATIC
     src/protection_request.cpp
     src/service_core.cpp
     src/target.cpp
+    src/windows_file_operation_observation.cpp
+    src/windows_file_operation_observer.cpp
     src/windows_operation_adapter.cpp
     src/windows_path_adapter.cpp
     src/windows_protection_event.cpp

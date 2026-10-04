@@ -237,3 +237,16 @@ add_test(
     COMMAND SentinalProtectionEventProcessorTests
 )
 set_tests_properties(Sentinal_ProtectionEventProcessorTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalWindowsFileOperationObserverTests
+    windows_file_operation_observer_tests.cpp
+)
+target_link_libraries(SentinalWindowsFileOperationObserverTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_WindowsFileOperationObserverTests
+    COMMAND SentinalWindowsFileOperationObserverTests
+)
+set_tests_properties(Sentinal_WindowsFileOperationObserverTests PROPERTIES LABELS "unit")
