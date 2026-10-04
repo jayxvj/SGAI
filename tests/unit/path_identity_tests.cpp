@@ -234,6 +234,32 @@ static void test_protection_target_relative_rejection() {
     assert(pe.addTarget("relative/path/target.txt", SENTINAL_TARGET_FILE) == SENTINAL_STATUS_INVALID_PARAMETER);
 }
 
+static void test_depth() {
+    // Invalid
+    assert(PathIdentity("").depth() == 0);
+    assert(PathIdentity("C:").depth() == 0);
+
+    // Drive root
+    assert(PathIdentity("C:/").depth() == 1);
+    assert(PathIdentity("D:\\").depth() == 1);
+
+    // Drive absolute & nested
+    assert(PathIdentity("C:/Sensitive").depth() == 2);
+    assert(PathIdentity("C:\\Sensitive\\Finance").depth() == 3);
+    assert(PathIdentity("C:/Sensitive/Finance/Payroll").depth() == 4);
+    assert(PathIdentity("C:/A/B/C/D/E/file.txt").depth() == 7);
+
+    // UNC
+    assert(PathIdentity("\\\\server\\share").depth() == 2);
+    assert(PathIdentity("//server/share/folder").depth() == 3);
+    assert(PathIdentity("//server/share/folder/sub").depth() == 4);
+
+    // Relative
+    assert(PathIdentity("file.txt").depth() == 1);
+    assert(PathIdentity("data/file.txt").depth() == 2);
+    assert(PathIdentity("a/b/c/d").depth() == 4);
+}
+
 int main() {
     std::cout << "[PathIdentity Tests] Running test suite..." << std::endl;
 
@@ -244,6 +270,7 @@ int main() {
     test_case_preservation_and_equality();
     test_hierarchy();
     test_protection_target_relative_rejection();
+    test_depth();
 
     std::cout << "[PathIdentity Tests] All tests passed successfully." << std::endl;
     return 0;

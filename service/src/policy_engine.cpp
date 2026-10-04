@@ -235,6 +235,10 @@ SentinalDecision PolicyEngine::evaluate(const PathIdentity& path, SentinalFileOp
         return defaultDecision;
     }
 
+    int bestPrecedence = 0; // 0 = No match, 1 = Recursive, 2 = Direct-child, 3 = Exact Dir, 4 = Exact File
+    size_t bestDepth = 0;
+    SentinalDecision bestDecision = defaultDecision;
+
     for (const auto& target : m_targets) {
         if (!target.enabled) {
             continue;
@@ -244,22 +248,44 @@ SentinalDecision PolicyEngine::evaluate(const PathIdentity& path, SentinalFileOp
             continue;
         }
 
+        int precedence = 0;
+
         if (target.type == SENTINAL_TARGET_FILE) {
             if (path == target.pathIdentity) {
-                return target.decision;
+                precedence = 4; // Exact FILE
             }
         } else if (target.type == SENTINAL_TARGET_DIRECTORY) {
-            if (path == target.pathIdentity || target.pathIdentity.isDirectParentOf(path)) {
-                return target.decision;
+            if (path == target.pathIdentity) {
+                precedence = 3; // Exact DIRECTORY
+            } else if (target.pathIdentity.isDirectParentOf(path)) {
+                precedence = 2; // Direct-child DIRECTORY
             }
         } else if (target.type == SENTINAL_TARGET_DIRECTORY_RECURSIVE) {
             if (path == target.pathIdentity || path.isDescendantOf(target.pathIdentity)) {
-                return target.decision;
+                precedence = 1; // Recursive DIRECTORY
+            }
+        }
+
+        if (precedence == 0) {
+            continue;
+        }
+
+        size_t targetDepth = target.pathIdentity.depth();
+
+        if (precedence > bestPrecedence) {
+            bestPrecedence = precedence;
+            bestDepth = targetDepth;
+            bestDecision = target.decision;
+        } else if (precedence == bestPrecedence && precedence == 1) {
+            // For multiple Recursive DIRECTORY matches, the target with the greatest depth wins
+            if (targetDepth > bestDepth) {
+                bestDepth = targetDepth;
+                bestDecision = target.decision;
             }
         }
     }
 
-    return defaultDecision;
+    return (bestPrecedence > 0) ? bestDecision : defaultDecision;
 }
 
 SentinalDecision PolicyEngine::evaluate(const std::string& path, SentinalFileOp op, SentinalDecision defaultDecision) const {

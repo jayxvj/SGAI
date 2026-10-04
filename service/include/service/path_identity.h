@@ -24,6 +24,7 @@ public:
     bool isRelative() const noexcept;
     bool isDriveRoot() const noexcept;
     bool isUnc() const noexcept;
+    size_t depth() const noexcept;
 
     const std::string& original() const noexcept;
     const std::string& normalized() const noexcept;
@@ -49,6 +50,7 @@ private:
     std::string m_normalized;
     PathType m_type{PathType::Invalid};
     bool m_isValid{false};
+    size_t m_depth{0};
 
     void parseAndNormalize();
 };

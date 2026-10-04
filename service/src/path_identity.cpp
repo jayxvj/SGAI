@@ -35,6 +35,10 @@ bool PathIdentity::isUnc() const noexcept {
     return m_type == PathType::Unc;
 }
 
+size_t PathIdentity::depth() const noexcept {
+    return m_depth;
+}
+
 const std::string& PathIdentity::original() const noexcept {
     return m_original;
 }
@@ -166,6 +170,7 @@ SentinalStatus PathIdentity::create(std::string rawPath, PathIdentity& outIdenti
 void PathIdentity::parseAndNormalize() {
     m_isValid = false;
     m_type = PathType::Invalid;
+    m_depth = 0;
     m_normalized.clear();
 
     if (m_original.empty()) {
@@ -240,6 +245,8 @@ void PathIdentity::parseAndNormalize() {
 
         m_normalized = std::move(norm);
         m_type = PathType::Unc;
+        size_t slashes = std::count(m_normalized.begin(), m_normalized.end(), '/');
+        m_depth = (slashes >= 1) ? (slashes - 1) : 0;
         m_isValid = true;
         return;
     }
@@ -296,8 +303,11 @@ void PathIdentity::parseAndNormalize() {
 
         if (norm.size() == 3) {
             m_type = PathType::DriveRoot;
+            m_depth = 1;
         } else {
             m_type = PathType::DriveAbsolute;
+            size_t slashes = std::count(norm.begin(), norm.end(), '/');
+            m_depth = 1 + slashes;
         }
 
         m_normalized = std::move(norm);
@@ -332,6 +342,8 @@ void PathIdentity::parseAndNormalize() {
 
     m_normalized = std::move(norm);
     m_type = PathType::Relative;
+    size_t slashes = std::count(m_normalized.begin(), m_normalized.end(), '/');
+    m_depth = 1 + slashes;
     m_isValid = true;
 }
 

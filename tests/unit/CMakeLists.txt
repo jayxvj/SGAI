@@ -68,3 +68,16 @@ add_test(
     COMMAND SentinalPathIdentityTests
 )
 set_tests_properties(Sentinal_PathIdentityTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalEvaluationSemanticsTests
+    evaluation_semantics_tests.cpp
+)
+target_link_libraries(SentinalEvaluationSemanticsTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_EvaluationSemanticsTests
+    COMMAND SentinalEvaluationSemanticsTests
+)
+set_tests_properties(Sentinal_EvaluationSemanticsTests PROPERTIES LABELS "unit")
