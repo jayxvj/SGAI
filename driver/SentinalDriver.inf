@@ -1,0 +1,87 @@
+; SentinalDriver.inf
+;
+; Sentinal AI minifilter driver installation descriptor.
+;
+; Phase 1.24 — Windows Minifilter Foundation
+;
+; Altitude range 320000–329999 is assigned to the "FSFilter Anti-Virus"
+; load-order group. Using a placeholder altitude in that range.
+; A unique altitude must be obtained from Microsoft before production use.
+;
+; ponytail: altitude 321000 is a placeholder; obtain a registered altitude
+;           from https://docs.microsoft.com/windows-hardware/drivers/ifs/allocated-altitudes
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = "ActivityMonitor"
+ClassGuid   = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
+Provider    = %ManufacturerName%
+DriverVer   =
+CatalogFile = SentinalDriver.cat
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 12         ; %windir%\system32\drivers
+
+[SourceDisksNames]
+1 = %DiskId1%,,,""
+
+[SourceDisksFiles]
+SentinalDriver.sys = 1,,
+
+;;
+;; Default install sections
+;;
+
+[DefaultInstall.NT$ARCH$.10.0...25000]
+OptionDesc = %ServiceDescription%
+CopyFiles  = SentinalDriver.DriverFiles
+
+[DefaultInstall.NT$ARCH$.10.0...25000.Services]
+AddService = %ServiceName%,,SentinalDriver.Service
+
+[DefaultUninstall.NT$ARCH$.10.0...25000]
+DelFiles   = SentinalDriver.DriverFiles
+
+[DefaultUninstall.NT$ARCH$.10.0...25000.Services]
+DelService = %ServiceName%,0x200        ; SPSVCINST_STOPSERVICE
+
+;;
+;; Services section
+;;
+
+[SentinalDriver.Service]
+DisplayName    = %ServiceName%
+Description    = %ServiceDescription%
+ServiceBinary  = %12%\SentinalDriver.sys
+ServiceType    = 2                      ; SERVICE_FILE_SYSTEM_DRIVER
+StartType      = 3                      ; SERVICE_DEMAND_START
+ErrorControl   = 1                      ; SERVICE_ERROR_NORMAL
+LoadOrderGroup = "FSFilter Activity Monitor"
+AddReg         = SentinalDriver.AddRegistry
+
+[SentinalDriver.AddRegistry]
+HKR,,"SupportedFeatures",0x00010001,0x3
+HKR,"Instances","DefaultInstance",0x00000000,%DefaultInstance%
+HKR,"Instances\"%DefaultInstance%,"Altitude",0x00000000,%DefaultAltitude%
+HKR,"Instances\"%DefaultInstance%,"Flags",0x00010001,%DefaultFlags%
+
+;;
+;; Copy files
+;;
+
+[SentinalDriver.DriverFiles]
+SentinalDriver.sys
+
+;;
+;; String section
+;;
+
+[Strings]
+ManufacturerName    = "Sentinal AI"
+ServiceName         = "SentinalDriver"
+ServiceDescription  = "Sentinal AI File-System Protection Driver"
+DiskId1             = "Sentinal AI Driver Installation Disk"
+DefaultInstance     = "SentinalDriver Instance"
+DefaultAltitude     = "321000"
+DefaultFlags        = 0x0

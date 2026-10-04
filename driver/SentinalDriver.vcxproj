@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SentinalDriver.vcxproj
+  Sentinal AI minifilter driver — WDK MSBuild project
+
+  Phase 1.24 - Windows Minifilter Foundation
+
+  Requirements:
+    - Windows Driver Kit (WDK) 10.0.26100.0 or later
+    - Visual Studio 2022 with "Desktop development with C++" workload
+    - WDK Visual Studio extension installed
+
+  Build:
+    msbuild SentinalDriver.vcxproj /p:Configuration=Debug /p:Platform=x64
+    msbuild SentinalDriver.vcxproj /p:Configuration=Release /p:Platform=x64
+-->
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <TemplateGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</TemplateGuid>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
+    <Configuration Condition="'$(Configuration)'==''">Debug</Configuration>
+    <Platform Condition="'$(Platform)'==''">x64</Platform>
+    <ProjectName>SentinalDriver</ProjectName>
+    <WDKContentRoot Condition="'$(WDKContentRoot)'==''">$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Kits\Installed Roots@KitsRoot10)</WDKContentRoot>
+  </PropertyGroup>
+
+  <Import Project="$(WDKContentRoot)build\WindowsDriver.Default.props" Condition="Exists('$(WDKContentRoot)build\WindowsDriver.Default.props')" />
+
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <DriverType>MiniFilter</DriverType>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverSign>false</DriverSign>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <DriverType>MiniFilter</DriverType>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverSign>false</DriverSign>
+  </PropertyGroup>
+
+  <Import Project="$(WDKContentRoot)build\WindowsDriver.props" Condition="Exists('$(WDKContentRoot)build\WindowsDriver.props')" />
+
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)build\driver\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)build\driver\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <TargetName>SentinalDriver</TargetName>
+    <TargetExt>.sys</TargetExt>
+    <EnableInf2cat>true</EnableInf2cat>
+    <Inf2CatWindowsVersionList>10_X64</Inf2CatWindowsVersionList>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>DBG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile />
+    </Link>
+    <Inf>
+      <SpecifyDriverVerDirectiveDate>false</SpecifyDriverVerDirectiveDate>
+    </Inf>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile />
+    </Link>
+    <Inf>
+      <SpecifyDriverVerDirectiveDate>false</SpecifyDriverVerDirectiveDate>
+    </Inf>
+  </ItemDefinitionGroup>
+
+  <!-- Source files -->
+  <ItemGroup>
+    <ClCompile Include="src\driver_entry.c" />
+  </ItemGroup>
+
+  <!-- Header files -->
+  <ItemGroup>
+    <ClInclude Include="include\sentinal_driver.h" />
+  </ItemGroup>
+
+  <!-- INF file -->
+  <ItemGroup>
+    <Inf Include="SentinalDriver.inf" />
+  </ItemGroup>
+
+  <Import Project="$(WDKContentRoot)build\WindowsDriver.targets" Condition="Exists('$(WDKContentRoot)build\WindowsDriver.targets')" />
+
+</Project>
