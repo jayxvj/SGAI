@@ -1,0 +1,272 @@
+/*
+ * communication_port.c
+ *
+ * Filter Manager Communication Port Foundation for Sentinal AI minifilter driver.
+ *
+ * Phase 1.30 — Filter Manager Communication Port Foundation
+ *
+ * Responsibilities:
+ *   - Creates and manages the server communication port lifecycle
+ *   - Implements connect notify callback with single-client policy enforcement
+ *   - Implements disconnect notify callback with safe resource cleanup
+ *   - Closes communication ports in correct order prior to filter unregistration
+ *
+ * Security:
+ *   - The port security descriptor is created via FltBuildDefaultSecurityDescriptor
+ *     with FLT_PORT_ALL_ACCESS. This restricts port connection access to:
+ *       1. System Administrators (Administrators group / BUILTIN\Administrators)
+ *       2. LocalSystem (NT AUTHORITY\SYSTEM)
+ *   - Standard, unprivileged user accounts are denied connection by the Windows
+ *     object manager at the Filter Manager port boundary.
+ *   - Note: This provides the baseline kernel/user privilege boundary for development.
+ *     Full cryptographic process authentication will be layered in subsequent phases.
+ *
+ * Lifecycle and Synchronization:
+ *   - All port lifecycle functions and callbacks execute at IRQL = PASSIVE_LEVEL.
+ *   - Connection state uses atomic pointer intrinsics (InterlockedCompareExchangePointer,
+ *     InterlockedExchangePointer). This avoids spinlocks (which raise IRQL to
+ *     DISPATCH_LEVEL and would violate FltCloseClientPort's PASSIVE_LEVEL contract)
+ *     and avoids mutex allocation overhead.
+ *   - Cleanup is deterministic: the server port is closed first (stopping new
+ *     connections), followed by any active client port, prior to FltUnregisterFilter.
+ */
+
+#include "sentinal_communication_port.h"
+
+/* =========================================================================
+ * Internal Communication State
+ * ========================================================================= */
+
+typedef struct _SENTINAL_COMMUNICATION_STATE {
+    PFLT_FILTER Filter;
+    PFLT_PORT   ServerPort;
+    PFLT_PORT   ClientPort;
+} SENTINAL_COMMUNICATION_STATE;
+
+static SENTINAL_COMMUNICATION_STATE g_CommunicationState = { NULL, NULL, NULL };
+
+/* =========================================================================
+ * SentinalInitializeCommunicationPort
+ * ========================================================================= */
+
+_Must_inspect_result_
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SentinalInitializeCommunicationPort(
+    _In_ PFLT_FILTER Filter
+)
+{
+    NTSTATUS             status;
+    PSECURITY_DESCRIPTOR securityDescriptor = NULL;
+    OBJECT_ATTRIBUTES    objectAttributes;
+    UNICODE_STRING       portName;
+    PFLT_PORT            serverPort = NULL;
+
+    PAGED_CODE();
+
+    if (Filter == NULL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    /*
+     * Build the default security descriptor granting access only to
+     * System Administrators and LocalSystem.
+     * Rejects Everyone / unprivileged callers at the kernel boundary.
+     */
+    status = FltBuildDefaultSecurityDescriptor(&securityDescriptor, FLT_PORT_ALL_ACCESS);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    RtlInitUnicodeString(&portName, SENTINAL_COMMUNICATION_PORT_NAME);
+
+    InitializeObjectAttributes(
+        &objectAttributes,
+        &portName,
+        OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE,
+        NULL,
+        securityDescriptor
+    );
+
+    /*
+     * Create the communication server port.
+     *
+     * MaxConnections = 1: Filter Manager enforces at most one concurrent connection.
+     * MessageNotifyCallback = NULL: No message processing in Phase 1.30.
+     * ServerPortCookie = NULL: No per-server cookie required.
+     */
+    status = FltCreateCommunicationPort(
+        Filter,
+        &serverPort,
+        &objectAttributes,
+        NULL,
+        SentinalPortConnectNotify,
+        SentinalPortDisconnectNotify,
+        NULL, /* MessageNotifyCallback — strictly NULL in Phase 1.30 */
+        1     /* MaxConnections */
+    );
+
+    /*
+     * FltCreateCommunicationPort captures the security descriptor into the
+     * created port object; free the temporary descriptor immediately.
+     */
+    FltFreeSecurityDescriptor(securityDescriptor);
+
+    if (!NT_SUCCESS(status)) {
+        g_CommunicationState.ServerPort = NULL;
+        return status;
+    }
+
+    g_CommunicationState.Filter     = Filter;
+    g_CommunicationState.ServerPort = serverPort;
+
+    return STATUS_SUCCESS;
+}
+
+/* =========================================================================
+ * SentinalCleanupCommunicationPort
+ * ========================================================================= */
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+SentinalCleanupCommunicationPort(
+    _In_ PFLT_FILTER Filter
+)
+{
+    PFLT_PORT serverPort;
+    PFLT_PORT clientPort;
+
+    PAGED_CODE();
+
+    /*
+     * Step 1: Atomically close the server communication port.
+     * This stops Filter Manager from accepting any new client connections.
+     */
+    serverPort = (PFLT_PORT)InterlockedExchangePointer(
+        (PVOID volatile *)&g_CommunicationState.ServerPort,
+        NULL
+    );
+
+    if (serverPort != NULL) {
+        FltCloseCommunicationPort(serverPort);
+    }
+
+    /*
+     * Step 2: Atomically close any active client communication port.
+     * Ensures no client connection remains alive past driver teardown.
+     */
+    clientPort = (PFLT_PORT)InterlockedExchangePointer(
+        (PVOID volatile *)&g_CommunicationState.ClientPort,
+        NULL
+    );
+
+    if (clientPort != NULL && Filter != NULL) {
+        FltCloseClientPort(Filter, &clientPort);
+    }
+
+    g_CommunicationState.Filter = NULL;
+}
+
+/* =========================================================================
+ * SentinalPortConnectNotify
+ * ========================================================================= */
+
+_Must_inspect_result_
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+FLTAPI
+SentinalPortConnectNotify(
+    _In_                          PFLT_PORT ClientPort,
+    _In_opt_                      PVOID     ServerPortCookie,
+    _In_reads_bytes_opt_(SizeOfContext) PVOID ConnectionContext,
+    _In_                          ULONG     SizeOfContext,
+    _Outptr_result_maybenull_     PVOID    *ConnectionPortCookie
+)
+{
+    PFLT_PORT oldClient;
+
+    PAGED_CODE();
+
+    UNREFERENCED_PARAMETER(ServerPortCookie);
+    UNREFERENCED_PARAMETER(ConnectionContext);
+    UNREFERENCED_PARAMETER(SizeOfContext);
+
+    /*
+     * Validate incoming ClientPort handle.
+     * ServerPortCookie is an optional input and may be NULL (must not be rejected).
+     */
+    if (ClientPort == NULL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    /*
+     * ConnectionPortCookie is an output pointer supplied by Filter Manager.
+     * For this single-client foundation, tracked state resides in g_CommunicationState.
+     * We initialize the output cookie to NULL if the output pointer is provided.
+     */
+    if (ConnectionPortCookie != NULL) {
+        *ConnectionPortCookie = NULL;
+    }
+
+    /*
+     * Enforce single-client connection policy:
+     * Atomically store the new ClientPort if currently NULL.
+     * If a client is already connected, reject the second connection with STATUS_DEVICE_BUSY.
+     */
+    oldClient = (PFLT_PORT)InterlockedCompareExchangePointer(
+        (PVOID volatile *)&g_CommunicationState.ClientPort,
+        (PVOID)ClientPort,
+        NULL
+    );
+
+    if (oldClient != NULL) {
+        /* A client is already connected; reject concurrent connection */
+        return STATUS_DEVICE_BUSY;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+/* =========================================================================
+ * SentinalPortDisconnectNotify
+ * ========================================================================= */
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+FLTAPI
+SentinalPortDisconnectNotify(
+    _In_opt_ PVOID ConnectionCookie
+)
+{
+    PFLT_PORT clientPort;
+
+    PAGED_CODE();
+
+    UNREFERENCED_PARAMETER(ConnectionCookie);
+
+    /*
+     * Atomically retrieve and clear the tracked client port.
+     * Filter Manager requires the minifilter to call FltCloseClientPort to
+     * release its reference to the client communication port.
+     */
+    clientPort = (PFLT_PORT)InterlockedExchangePointer(
+        (PVOID volatile *)&g_CommunicationState.ClientPort,
+        NULL
+    );
+
+    if (clientPort != NULL && g_CommunicationState.Filter != NULL) {
+        FltCloseClientPort(g_CommunicationState.Filter, &clientPort);
+    }
+}
+
+/* =========================================================================
+ * SentinalIsClientConnected
+ * ========================================================================= */
+
+BOOLEAN
+SentinalIsClientConnected(
+    VOID
+)
+{
+    return (g_CommunicationState.ClientPort != NULL) ? TRUE : FALSE;
+}

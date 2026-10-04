@@ -3,12 +3,13 @@
  *
  * Sentinal AI minifilter driver — DriverEntry and filter lifecycle.
  *
- * Phase 1.28 — Kernel Path Acquisition
+ * Phase 1.30 — Filter Manager Communication Port Foundation
  *
  * Responsibilities:
  *   - Register the minifilter with Filter Manager (FltRegisterFilter)
+ *   - Initialize the communication port (SentinalInitializeCommunicationPort)
  *   - Start filtering (FltStartFiltering)
- *   - Unregister on unload (FltUnregisterFilter)
+ *   - Clean up communication port and unregister on unload (SentinalDriverUnload)
  *   - Construct and validate kernel observation events for IRP_MJ_CREATE,
  *     IRP_MJ_WRITE, and IRP_MJ_SET_INFORMATION in pre-operation callbacks
  *   - Pass through all operations (FLT_PREOP_SUCCESS_NO_CALLBACK)
@@ -19,13 +20,14 @@
  *   - parameter modification or redirection
  *   - policy evaluation
  *   - encryption or decryption
- *   - communication ports or user-mode IPC
+ *   - message payload processing
  *   - IOCTL handling
  *   - kernel filesystem calls or re-entrant I/O
  */
 
 #include "sentinal_driver.h"
 #include "sentinal_path_acquisition.h"
+#include "sentinal_communication_port.h"
 
 /* =========================================================================
  * Global filter handle
@@ -116,24 +118,43 @@ DriverEntry(
     }
 
     /*
+     * Establish the Filter Manager communication port BEFORE filtering starts.
+     * The communication endpoint must be fully established before the minifilter
+     * begins processing active filesystem I/O.
+     */
+    status = SentinalInitializeCommunicationPort(g_SentinalFilter);
+
+    if (!NT_SUCCESS(status)) {
+        SentinalCleanupCommunicationPort(g_SentinalFilter);
+        FltUnregisterFilter(g_SentinalFilter);
+        g_SentinalFilter = NULL;
+        return status;
+    }
+
+    /*
      * Begin filtering I/O.
-     * If this fails, unregister before returning so we do not leak the handle.
+     * If start fails, clean up the communication port and unregister the filter.
      */
     status = FltStartFiltering(g_SentinalFilter);
 
     if (!NT_SUCCESS(status)) {
+        SentinalCleanupCommunicationPort(g_SentinalFilter);
         FltUnregisterFilter(g_SentinalFilter);
         g_SentinalFilter = NULL;
+        return status;
     }
 
-    return status;
+    return STATUS_SUCCESS;
 }
 
 /* =========================================================================
  * SentinalDriverUnload
  *
  * Called by Filter Manager when the driver is being unloaded.
- * Unregisters the filter and clears the global handle.
+ * Deterministic cleanup ordering:
+ *   1. Close communication port (server & client)
+ *   2. Unregister filter
+ *   3. Clear global handle
  * ========================================================================= */
 
 NTSTATUS
@@ -144,6 +165,7 @@ SentinalDriverUnload(
     UNREFERENCED_PARAMETER(Flags);
 
     if (g_SentinalFilter != NULL) {
+        SentinalCleanupCommunicationPort(g_SentinalFilter);
         FltUnregisterFilter(g_SentinalFilter);
         g_SentinalFilter = NULL;
     }
