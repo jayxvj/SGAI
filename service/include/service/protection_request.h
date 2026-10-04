@@ -2,6 +2,7 @@
 
 #include <sentinal/common.h>
 #include "service/path_identity.h"
+#include "service/protection_evaluation_context.h"
 
 namespace sentinel::service {
 
@@ -14,8 +15,15 @@ public:
         SentinalFileOp operation
     );
 
+    ProtectionRequest(
+        PathIdentity path,
+        SentinalFileOp operation,
+        ProtectionEvaluationContext context
+    );
+
     const PathIdentity& path() const noexcept;
     SentinalFileOp operation() const noexcept;
+    const ProtectionEvaluationContext& context() const noexcept;
 
     bool isValid() const noexcept;
     SentinalStatus validate() const noexcept;
@@ -23,6 +31,7 @@ public:
 private:
     PathIdentity m_path;
     SentinalFileOp m_operation{SENTINAL_OP_NONE};
+    ProtectionEvaluationContext m_context;
 };
 
 } // namespace sentinel::service
