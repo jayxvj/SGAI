@@ -289,3 +289,16 @@ add_test(
     COMMAND SentinalProtectionServiceFacadeTests
 )
 set_tests_properties(Sentinal_ProtectionServiceFacadeTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalWindowsProtectionEnforcementAdapterTests
+    windows_protection_enforcement_adapter_tests.cpp
+)
+target_link_libraries(SentinalWindowsProtectionEnforcementAdapterTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_WindowsProtectionEnforcementAdapterTests
+    COMMAND SentinalWindowsProtectionEnforcementAdapterTests
+)
+set_tests_properties(Sentinal_WindowsProtectionEnforcementAdapterTests PROPERTIES LABELS "unit")
