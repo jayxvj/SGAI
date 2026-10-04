@@ -419,3 +419,46 @@ add_test(
     COMMAND SentinalWindowsDriverCommunicationTests
 )
 set_tests_properties(Sentinal_WindowsDriverCommunicationTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverUnicodeContractCCompat
+    driver_unicode_contract_c_compatibility.c
+)
+target_link_libraries(SentinalDriverUnicodeContractCCompat PRIVATE
+    SentinalDriverUnicodeContract
+)
+
+add_test(
+    NAME Sentinal_DriverUnicodeContract_C_Compatibility
+    COMMAND SentinalDriverUnicodeContractCCompat
+)
+set_tests_properties(Sentinal_DriverUnicodeContract_C_Compatibility PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverUnicodeContractCppCompat
+    driver_unicode_contract_cpp_compatibility.cpp
+)
+target_link_libraries(SentinalDriverUnicodeContractCppCompat PRIVATE
+    SentinalDriverUnicodeContract
+)
+
+add_test(
+    NAME Sentinal_DriverUnicodeContract_CPP_Compatibility
+    COMMAND SentinalDriverUnicodeContractCppCompat
+)
+set_tests_properties(Sentinal_DriverUnicodeContract_CPP_Compatibility PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverUnicodeContractTests
+    driver_unicode_contract_tests.cpp
+    ${CMAKE_SOURCE_DIR}/driver/src/driver_unicode_contract_adapter.c
+)
+target_include_directories(SentinalDriverUnicodeContractTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/driver/include
+)
+target_link_libraries(SentinalDriverUnicodeContractTests PRIVATE
+    SentinalDriverUnicodeContract
+)
+
+add_test(
+    NAME Sentinal_DriverUnicodeContractTests
+    COMMAND SentinalDriverUnicodeContractTests
+)
+set_tests_properties(Sentinal_DriverUnicodeContractTests PROPERTIES LABELS "unit")
