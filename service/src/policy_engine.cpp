@@ -1,4 +1,5 @@
 #include "service/policy_engine.h"
+#include "service/protection_request.h"
 #include <algorithm>
 
 namespace sentinel::service {
@@ -295,6 +296,14 @@ SentinalDecision PolicyEngine::evaluate(const std::string& path, SentinalFileOp 
 
     PathIdentity pi(path);
     return evaluate(pi, op, defaultDecision);
+}
+
+SentinalDecision PolicyEngine::evaluate(const ProtectionRequest& request, SentinalDecision defaultDecision) const {
+    if (!request.isValid()) {
+        return defaultDecision;
+    }
+
+    return evaluate(request.path(), request.operation(), defaultDecision);
 }
 
 } // namespace sentinel::service

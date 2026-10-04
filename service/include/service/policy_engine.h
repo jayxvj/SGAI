@@ -9,6 +9,8 @@
 
 namespace sentinel::service {
 
+class ProtectionRequest;
+
 class PolicyEngine {
 public:
     PolicyEngine() = default;
@@ -36,6 +38,8 @@ public:
     SentinalDecision evaluate(const std::string& path, SentinalFileOp op,
                              SentinalDecision defaultDecision = SENTINAL_DECISION_ALLOW) const;
     SentinalDecision evaluate(const PathIdentity& path, SentinalFileOp op,
+                             SentinalDecision defaultDecision = SENTINAL_DECISION_ALLOW) const;
+    SentinalDecision evaluate(const ProtectionRequest& request,
                              SentinalDecision defaultDecision = SENTINAL_DECISION_ALLOW) const;
 
     // Phase 0 convenience API

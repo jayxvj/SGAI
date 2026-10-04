@@ -81,3 +81,16 @@ add_test(
     COMMAND SentinalEvaluationSemanticsTests
 )
 set_tests_properties(Sentinal_EvaluationSemanticsTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalProtectionRequestTests
+    protection_request_tests.cpp
+)
+target_link_libraries(SentinalProtectionRequestTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_ProtectionRequestTests
+    COMMAND SentinalProtectionRequestTests
+)
+set_tests_properties(Sentinal_ProtectionRequestTests PROPERTIES LABELS "unit")
