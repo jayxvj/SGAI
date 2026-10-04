@@ -3,7 +3,7 @@
  *
  * Sentinal AI minifilter driver — DriverEntry and filter lifecycle.
  *
- * Phase 1.26 — Kernel Observation Event Model
+ * Phase 1.28 — Kernel Path Acquisition
  *
  * Responsibilities:
  *   - Register the minifilter with Filter Manager (FltRegisterFilter)
@@ -25,6 +25,7 @@
  */
 
 #include "sentinal_driver.h"
+#include "sentinal_path_acquisition.h"
 
 /* =========================================================================
  * Global filter handle
@@ -171,16 +172,25 @@ SentinalPreCreate(
     SENTINAL_OBSERVATION_EVENT event;
     NTSTATUS status;
 
-    UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
 
-    event.Size = sizeof(SENTINAL_OBSERVATION_EVENT);
-    event.Version = SENTINAL_OBSERVATION_EVENT_VERSION_1;
+    RtlZeroMemory(&event, sizeof(event));
+    event.Size      = sizeof(SENTINAL_OBSERVATION_EVENT);
+    event.Version   = SENTINAL_OBSERVATION_EVENT_VERSION_1;
     event.Operation = SentinalObservedCreate;
 
-    status = SentinalValidateObservationEvent(&event);
-    UNREFERENCED_PARAMETER(status);
+    status = SentinalAcquireObservationPath(Data, &event);
+    if (NT_SUCCESS(status)) {
+        /*
+         * Path acquired. Validate the fully-populated event.
+         * Adapter is not invoked here (no communication channel yet).
+         * ponytail: discard status — observation-only, no side effects.
+         */
+        status = SentinalValidateObservationEvent(&event);
+        UNREFERENCED_PARAMETER(status);
+    }
+    /* If path acquisition failed, silently discard. Never fabricate. */
 
     /* ponytail: observation-only — pass through without altering outcome */
     return FLT_PREOP_SUCCESS_NO_CALLBACK;
@@ -196,16 +206,19 @@ SentinalPreWrite(
     SENTINAL_OBSERVATION_EVENT event;
     NTSTATUS status;
 
-    UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
 
-    event.Size = sizeof(SENTINAL_OBSERVATION_EVENT);
-    event.Version = SENTINAL_OBSERVATION_EVENT_VERSION_1;
+    RtlZeroMemory(&event, sizeof(event));
+    event.Size      = sizeof(SENTINAL_OBSERVATION_EVENT);
+    event.Version   = SENTINAL_OBSERVATION_EVENT_VERSION_1;
     event.Operation = SentinalObservedWrite;
 
-    status = SentinalValidateObservationEvent(&event);
-    UNREFERENCED_PARAMETER(status);
+    status = SentinalAcquireObservationPath(Data, &event);
+    if (NT_SUCCESS(status)) {
+        status = SentinalValidateObservationEvent(&event);
+        UNREFERENCED_PARAMETER(status);
+    }
 
     /* ponytail: observation-only — pass through without altering outcome */
     return FLT_PREOP_SUCCESS_NO_CALLBACK;
@@ -221,16 +234,19 @@ SentinalPreSetInformation(
     SENTINAL_OBSERVATION_EVENT event;
     NTSTATUS status;
 
-    UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
 
-    event.Size = sizeof(SENTINAL_OBSERVATION_EVENT);
-    event.Version = SENTINAL_OBSERVATION_EVENT_VERSION_1;
+    RtlZeroMemory(&event, sizeof(event));
+    event.Size      = sizeof(SENTINAL_OBSERVATION_EVENT);
+    event.Version   = SENTINAL_OBSERVATION_EVENT_VERSION_1;
     event.Operation = SentinalObservedSetInformation;
 
-    status = SentinalValidateObservationEvent(&event);
-    UNREFERENCED_PARAMETER(status);
+    status = SentinalAcquireObservationPath(Data, &event);
+    if (NT_SUCCESS(status)) {
+        status = SentinalValidateObservationEvent(&event);
+        UNREFERENCED_PARAMETER(status);
+    }
 
     /* ponytail: observation-only — pass through without altering outcome */
     return FLT_PREOP_SUCCESS_NO_CALLBACK;

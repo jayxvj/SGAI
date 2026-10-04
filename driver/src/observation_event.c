@@ -3,7 +3,7 @@
  *
  * Validation and lifecycle logic for kernel observation events.
  *
- * Phase 1.26 — Kernel Observation Event Model
+ * Phase 1.28 — Kernel Path Acquisition
  *
  * Non-paged: All code is safe to execute at IRQL <= DISPATCH_LEVEL.
  * No memory allocation, no user-buffer access, no blocking/synchronization.
@@ -34,6 +34,15 @@ SentinalValidateObservationEvent(
     case SentinalObservedSetInformation:
         break;
     default:
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    /*
+     * PathLength must be non-zero (no fabricated paths) and must fit within
+     * the bounded buffer, leaving room for the NUL terminator.
+     */
+    if (Event->PathLength == 0 ||
+        Event->PathLength >= SENTINAL_OBSERVATION_EVENT_MAX_PATH) {
         return STATUS_INVALID_PARAMETER;
     }
 

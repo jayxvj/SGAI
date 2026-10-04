@@ -88,13 +88,25 @@ SentinalObservationToDriverRequest(
     localRequest.reserved = 0;
 
     /*
-     * 5. Path handling:
-     *    SENTINAL_OBSERVATION_EVENT contains no path data at this phase.
-     *    We must not invent placeholder paths. Because pathLength remains 0,
-     *    the shared contract validator will reject the request.
+     * 5. Path: copy from the event's wide-char path into the contract's
+     *    char path[].  The event path is an NT kernel path; its characters
+     *    are expected to be in the ASCII/Latin-1 range for volume paths.
+     *
+     * ponytail: byte-narrow (cast each WCHAR to char).  Ceiling: non-ASCII
+     *   path characters (e.g. international filenames) will be corrupted.
+     *   Upgrade path: replace with a proper WC_TO_MB conversion or pass the
+     *   wide path directly once the communication layer is introduced.
      */
-    localRequest.pathLength = 0;
-    localRequest.path[0] = '\0';
+    {
+        USHORT i;
+        USHORT len = Event->PathLength;  /* already validated < MAX_PATH */
+
+        for (i = 0; i < len; i++) {
+            localRequest.path[i] = (char)Event->Path[i];
+        }
+        localRequest.path[len] = '\0';
+        localRequest.pathLength = (uint32_t)len;
+    }
 
     /* 6. Validate using the authoritative shared contract validator */
     contractStatus = SentinalDriverValidateProtectionRequest(&localRequest);

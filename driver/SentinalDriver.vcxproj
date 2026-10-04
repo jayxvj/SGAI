@@ -151,6 +151,7 @@
   <ItemGroup>
     <ClCompile Include="src\driver_entry.c" />
     <ClCompile Include="src\observation_event.c" />
+    <ClCompile Include="src\path_acquisition.c" />
     <ClCompile Include="src\driver_contract_adapter.c" />
     <ClCompile Include="..\shared\src\driver_contract.c" />
   </ItemGroup>
@@ -159,6 +160,7 @@
   <ItemGroup>
     <ClInclude Include="include\sentinal_driver.h" />
     <ClInclude Include="include\sentinal_observation_event.h" />
+    <ClInclude Include="include\sentinal_path_acquisition.h" />
     <ClInclude Include="include\sentinal_driver_contract_adapter.h" />
   </ItemGroup>
 
