@@ -1,5 +1,6 @@
 #include "service/policy_engine.h"
 #include "service/protection_request.h"
+#include "service/protection_decision.h"
 #include <algorithm>
 
 namespace sentinel::service {
@@ -232,13 +233,30 @@ size_t PolicyEngine::getTargetCount() const {
 }
 
 SentinalDecision PolicyEngine::evaluate(const PathIdentity& path, SentinalFileOp op, SentinalDecision defaultDecision) const {
-    if (op == SENTINAL_OP_NONE || !path.isValid()) {
+    return evaluateDetailed(path, op, defaultDecision).decision();
+}
+
+SentinalDecision PolicyEngine::evaluate(const std::string& path, SentinalFileOp op, SentinalDecision defaultDecision) const {
+    if (op == SENTINAL_OP_NONE || path.empty()) {
         return defaultDecision;
     }
+    return evaluateDetailed(PathIdentity(path), op, defaultDecision).decision();
+}
 
-    int bestPrecedence = 0; // 0 = No match, 1 = Recursive, 2 = Direct-child, 3 = Exact Dir, 4 = Exact File
+SentinalDecision PolicyEngine::evaluate(const ProtectionRequest& request, SentinalDecision defaultDecision) const {
+    return evaluateDetailed(request, defaultDecision).decision();
+}
+
+ProtectionDecision PolicyEngine::evaluateDetailed(const PathIdentity& path, SentinalFileOp op, SentinalDecision defaultDecision) const {
+    if (op == SENTINAL_OP_NONE || !path.isValid()) {
+        return {defaultDecision, ProtectionDecisionReason::DEFAULT_POLICY};
+    }
+
+    // 0=none, 1=recursive, 2=direct-child, 3=exact-dir, 4=exact-file
+    int bestPrecedence = 0;
     size_t bestDepth = 0;
     SentinalDecision bestDecision = defaultDecision;
+    ProtectionDecisionReason bestReason = ProtectionDecisionReason::DEFAULT_POLICY;
 
     for (const auto& target : m_targets) {
         if (!target.enabled) {
@@ -250,20 +268,25 @@ SentinalDecision PolicyEngine::evaluate(const PathIdentity& path, SentinalFileOp
         }
 
         int precedence = 0;
+        ProtectionDecisionReason reason = ProtectionDecisionReason::DEFAULT_POLICY;
 
         if (target.type == SENTINAL_TARGET_FILE) {
             if (path == target.pathIdentity) {
-                precedence = 4; // Exact FILE
+                precedence = 4;
+                reason = ProtectionDecisionReason::EXACT_FILE;
             }
         } else if (target.type == SENTINAL_TARGET_DIRECTORY) {
             if (path == target.pathIdentity) {
-                precedence = 3; // Exact DIRECTORY
+                precedence = 3;
+                reason = ProtectionDecisionReason::EXACT_DIRECTORY;
             } else if (target.pathIdentity.isDirectParentOf(path)) {
-                precedence = 2; // Direct-child DIRECTORY
+                precedence = 2;
+                reason = ProtectionDecisionReason::DIRECT_CHILD_DIRECTORY;
             }
         } else if (target.type == SENTINAL_TARGET_DIRECTORY_RECURSIVE) {
             if (path == target.pathIdentity || path.isDescendantOf(target.pathIdentity)) {
-                precedence = 1; // Recursive DIRECTORY
+                precedence = 1;
+                reason = ProtectionDecisionReason::RECURSIVE_DIRECTORY;
             }
         }
 
@@ -277,33 +300,25 @@ SentinalDecision PolicyEngine::evaluate(const PathIdentity& path, SentinalFileOp
             bestPrecedence = precedence;
             bestDepth = targetDepth;
             bestDecision = target.decision;
+            bestReason = reason;
         } else if (precedence == bestPrecedence && precedence == 1) {
-            // For multiple Recursive DIRECTORY matches, the target with the greatest depth wins
+            // Deepest recursive target wins
             if (targetDepth > bestDepth) {
                 bestDepth = targetDepth;
                 bestDecision = target.decision;
+                bestReason = reason;
             }
         }
     }
 
-    return (bestPrecedence > 0) ? bestDecision : defaultDecision;
+    return {bestDecision, bestReason};
 }
 
-SentinalDecision PolicyEngine::evaluate(const std::string& path, SentinalFileOp op, SentinalDecision defaultDecision) const {
-    if (op == SENTINAL_OP_NONE || path.empty()) {
-        return defaultDecision;
-    }
-
-    PathIdentity pi(path);
-    return evaluate(pi, op, defaultDecision);
-}
-
-SentinalDecision PolicyEngine::evaluate(const ProtectionRequest& request, SentinalDecision defaultDecision) const {
+ProtectionDecision PolicyEngine::evaluateDetailed(const ProtectionRequest& request, SentinalDecision defaultDecision) const {
     if (!request.isValid()) {
-        return defaultDecision;
+        return {defaultDecision, ProtectionDecisionReason::INVALID_REQUEST};
     }
-
-    return evaluate(request.path(), request.operation(), defaultDecision);
+    return evaluateDetailed(request.path(), request.operation(), defaultDecision);
 }
 
 } // namespace sentinel::service

@@ -6,6 +6,7 @@
 #include <sentinal/common.h>
 #include "service/target.h"
 #include "service/path_identity.h"
+#include "service/protection_decision.h"
 
 namespace sentinel::service {
 
@@ -41,6 +42,12 @@ public:
                              SentinalDecision defaultDecision = SENTINAL_DECISION_ALLOW) const;
     SentinalDecision evaluate(const ProtectionRequest& request,
                              SentinalDecision defaultDecision = SENTINAL_DECISION_ALLOW) const;
+
+    // Detailed evaluation (authoritative — returns reason alongside decision)
+    ProtectionDecision evaluateDetailed(const PathIdentity& path, SentinalFileOp op,
+                                       SentinalDecision defaultDecision = SENTINAL_DECISION_ALLOW) const;
+    ProtectionDecision evaluateDetailed(const ProtectionRequest& request,
+                                       SentinalDecision defaultDecision = SENTINAL_DECISION_ALLOW) const;
 
     // Phase 0 convenience API
     SentinalStatus addTarget(const std::string& path, SentinalTargetType type,
