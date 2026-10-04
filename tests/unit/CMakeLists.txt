@@ -250,3 +250,16 @@ add_test(
     COMMAND SentinalWindowsFileOperationObserverTests
 )
 set_tests_properties(Sentinal_WindowsFileOperationObserverTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalProtectionExecutionResultTests
+    protection_execution_result_tests.cpp
+)
+target_link_libraries(SentinalProtectionExecutionResultTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_ProtectionExecutionResultTests
+    COMMAND SentinalProtectionExecutionResultTests
+)
+set_tests_properties(Sentinal_ProtectionExecutionResultTests PROPERTIES LABELS "unit")

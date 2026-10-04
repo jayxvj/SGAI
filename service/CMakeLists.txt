@@ -9,6 +9,7 @@ add_library(SentinelServiceCore STATIC
     src/protection_enforcement.cpp
     src/protection_event_processor.cpp
     src/protection_execution_engine.cpp
+    src/protection_execution_result.cpp
     src/protection_operation.cpp
     src/protection_operation_adapter.cpp
     src/protection_request.cpp
