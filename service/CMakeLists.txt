@@ -3,6 +3,7 @@ add_library(SentinelServiceCore STATIC
     src/logger.cpp
     src/path_identity.cpp
     src/policy_engine.cpp
+    src/protection_audit_event.cpp
     src/protection_decision.cpp
     src/protection_evaluation_context.cpp
     src/protection_evaluation_engine.cpp

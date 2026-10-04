@@ -263,3 +263,16 @@ add_test(
     COMMAND SentinalProtectionExecutionResultTests
 )
 set_tests_properties(Sentinal_ProtectionExecutionResultTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalProtectionAuditEventTests
+    protection_audit_event_tests.cpp
+)
+target_link_libraries(SentinalProtectionAuditEventTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_ProtectionAuditEventTests
+    COMMAND SentinalProtectionAuditEventTests
+)
+set_tests_properties(Sentinal_ProtectionAuditEventTests PROPERTIES LABELS "unit")
