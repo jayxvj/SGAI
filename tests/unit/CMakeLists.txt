@@ -211,3 +211,16 @@ add_test(
     COMMAND SentinalWindowsProtectionEventTests
 )
 set_tests_properties(Sentinal_WindowsProtectionEventTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalProtectionExecutionEngineTests
+    protection_execution_engine_tests.cpp
+)
+target_link_libraries(SentinalProtectionExecutionEngineTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_ProtectionExecutionEngineTests
+    COMMAND SentinalProtectionExecutionEngineTests
+)
+set_tests_properties(Sentinal_ProtectionExecutionEngineTests PROPERTIES LABELS "unit")
