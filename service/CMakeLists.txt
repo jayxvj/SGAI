@@ -1,5 +1,9 @@
 add_library(SentinelServiceCore STATIC
     src/config.cpp
+    src/driver_communication_service.cpp
+    src/driver_contract_adapter.cpp
+    src/driver_protection_request.cpp
+    src/driver_protection_response.cpp
     src/logger.cpp
     src/path_identity.cpp
     src/policy_engine.cpp
@@ -17,6 +21,7 @@ add_library(SentinelServiceCore STATIC
     src/protection_service_facade.cpp
     src/service_core.cpp
     src/target.cpp
+    src/test_driver_communication.cpp
     src/windows_file_operation_observation.cpp
     src/windows_file_operation_observer.cpp
     src/windows_operation_adapter.cpp
@@ -34,6 +39,7 @@ target_include_directories(SentinelServiceCore PUBLIC
 
 target_link_libraries(SentinelServiceCore PUBLIC
     SentinalShared
+    SentinalDriverContract
 )
 
 add_executable(SentinelService

@@ -341,3 +341,55 @@ add_test(
     COMMAND SentinalDriverContractTests
 )
 set_tests_properties(Sentinal_DriverContractTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverProtectionRequestTests
+    driver_protection_request_tests.cpp
+)
+target_link_libraries(SentinalDriverProtectionRequestTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_DriverProtectionRequestTests
+    COMMAND SentinalDriverProtectionRequestTests
+)
+set_tests_properties(Sentinal_DriverProtectionRequestTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverProtectionResponseTests
+    driver_protection_response_tests.cpp
+)
+target_link_libraries(SentinalDriverProtectionResponseTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_DriverProtectionResponseTests
+    COMMAND SentinalDriverProtectionResponseTests
+)
+set_tests_properties(Sentinal_DriverProtectionResponseTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverContractAdapterTests
+    driver_contract_adapter_tests.cpp
+)
+target_link_libraries(SentinalDriverContractAdapterTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_DriverContractAdapterTests
+    COMMAND SentinalDriverContractAdapterTests
+)
+set_tests_properties(Sentinal_DriverContractAdapterTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalDriverCommunicationServiceTests
+    driver_communication_service_tests.cpp
+)
+target_link_libraries(SentinalDriverCommunicationServiceTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_DriverCommunicationServiceTests
+    COMMAND SentinalDriverCommunicationServiceTests
+)
+set_tests_properties(Sentinal_DriverCommunicationServiceTests PROPERTIES LABELS "unit")
