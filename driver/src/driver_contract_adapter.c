@@ -20,8 +20,6 @@ SentinalObservationToDriverRequest(
 {
     NTSTATUS eventStatus;
     uint32_t mappedOp;
-    SentinalDriverProtectionRequest localRequest;
-    SentinalStatus contractStatus;
 
     /* 1. Validate pointers and basic input requirements */
     if (Event == NULL || Request == NULL) {
@@ -71,55 +69,26 @@ SentinalObservationToDriverRequest(
         return STATUS_INVALID_PARAMETER;
     }
 
-    /* 4. Construct zero-initialized local request (no partial write to output) */
-    RtlZeroMemory(&localRequest, sizeof(localRequest));
-
-    /* Request header */
-    localRequest.header.size = (uint32_t)sizeof(SentinalDriverProtectionRequest);
-    localRequest.header.majorVersion = (uint16_t)SENTINAL_DRIVER_CONTRACT_MAJOR_VERSION;
-    localRequest.header.minorVersion = (uint16_t)SENTINAL_DRIVER_CONTRACT_MINOR_VERSION;
-    localRequest.header.messageType = (uint32_t)SENTINAL_DRIVER_MESSAGE_PROTECTION_REQUEST;
-    localRequest.header.reserved = 0;
-
-    /* Request payload */
-    localRequest.requestId = RequestId;
-    localRequest.operation = mappedOp;
-    localRequest.source = SENTINAL_DRIVER_SOURCE_KERNEL;
-    localRequest.reserved = 0;
-
-    /*
-     * 5. Path: copy from the event's wide-char path into the contract's
-     *    char path[].  The event path is an NT kernel path; its characters
-     *    are expected to be in the ASCII/Latin-1 range for volume paths.
+    /* 4. Path: the only operation that reaches here is SentinalObservedWrite
+     *    (SENTINAL_OP_WRITE). The kernel observation carries a UTF-16LE WCHAR
+     *    path. The current shared contract defines path[] as char[], which is
+     *    an ANSI/byte representation. There is no lossless encoding from
+     *    UTF-16LE to char[] without an explicit, agreed Unicode contract that
+     *    has not been designed yet.
      *
-     * ponytail: byte-narrow (cast each WCHAR to char).  Ceiling: non-ASCII
-     *   path characters (e.g. international filenames) will be corrupted.
-     *   Upgrade path: replace with a proper WC_TO_MB conversion or pass the
-     *   wide path directly once the communication layer is introduced.
+     *    Byte-narrowing (casting each WCHAR to char) silently corrupts any
+     *    path with non-ASCII characters (Cyrillic, CJK, accented Latin, etc.).
+     *    That is not acceptable.
+     *
+     *    Reject the conversion rather than corrupt the path.
+     *    STATUS_NOT_SUPPORTED is consistent with the Phase 1.27 rejection
+     *    policy for representations that cannot be faithfully expressed by the
+     *    current contract ABI.
+     *
+     *    Upgrade path: introduce a Unicode-capable kernel/user contract
+     *    (e.g. a wchar_t path[] field, or an agreed UTF-8 encoding step)
+     *    before enabling this conversion path.
      */
-    {
-        USHORT i;
-        USHORT len = Event->PathLength;  /* already validated < MAX_PATH */
-
-        for (i = 0; i < len; i++) {
-            localRequest.path[i] = (char)Event->Path[i];
-        }
-        localRequest.path[len] = '\0';
-        localRequest.pathLength = (uint32_t)len;
-    }
-
-    /* 6. Validate using the authoritative shared contract validator */
-    contractStatus = SentinalDriverValidateProtectionRequest(&localRequest);
-    if (contractStatus != SENTINAL_STATUS_SUCCESS) {
-        /*
-         * A valid protection request fundamentally requires a real path
-         * (pathLength > 0), which is deferred to a future path-acquisition phase.
-         * Reject conversion without mutating the caller's output.
-         */
-        return STATUS_NOT_SUPPORTED;
-    }
-
-    /* 7. Assign to output buffer only on complete validation success */
-    *Request = localRequest;
-    return STATUS_SUCCESS;
+    UNREFERENCED_PARAMETER(mappedOp);
+    return STATUS_NOT_SUPPORTED;
 }
