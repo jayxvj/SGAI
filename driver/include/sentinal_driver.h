@@ -12,6 +12,7 @@
 
 #include <fltKernel.h>
 #include <dontuse.h>
+#include "sentinal_observation_event.h"
 
 /* =========================================================================
  * Driver identity

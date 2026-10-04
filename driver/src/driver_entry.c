@@ -3,25 +3,25 @@
  *
  * Sentinal AI minifilter driver — DriverEntry and filter lifecycle.
  *
- * Phase 1.25 — Kernel Minifilter Observation
+ * Phase 1.26 — Kernel Observation Event Model
  *
  * Responsibilities:
  *   - Register the minifilter with Filter Manager (FltRegisterFilter)
  *   - Start filtering (FltStartFiltering)
  *   - Unregister on unload (FltUnregisterFilter)
- *   - Observe IRP_MJ_CREATE, IRP_MJ_WRITE, IRP_MJ_SET_INFORMATION
- *     via pass-through pre-operation callbacks (FLT_PREOP_SUCCESS_NO_CALLBACK)
+ *   - Construct and validate kernel observation events for IRP_MJ_CREATE,
+ *     IRP_MJ_WRITE, and IRP_MJ_SET_INFORMATION in pre-operation callbacks
+ *   - Pass through all operations (FLT_PREOP_SUCCESS_NO_CALLBACK)
  *
  * This file contains NO:
- *   - file blocking or access-denial logic (no FLT_PREOP_COMPLETE)
- *   - asynchronous completion (no FLT_PREOP_PENDING)
+ *   - file blocking or access denial
+ *   - asynchronous completion
  *   - parameter modification or redirection
  *   - policy evaluation
- *   - encryption / decryption
- *   - communication port (FltCreateCommunicationPort)
- *   - user-mode messaging (FltSendMessage)
+ *   - encryption or decryption
+ *   - communication ports or user-mode IPC
  *   - IOCTL handling
- *   - filesystem operations (no ZwCreateFile / ZwWriteFile / ZwReadFile)
+ *   - kernel filesystem calls or re-entrant I/O
  */
 
 #include "sentinal_driver.h"
@@ -168,9 +168,19 @@ SentinalPreCreate(
     _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
 )
 {
+    SENTINAL_OBSERVATION_EVENT event;
+    NTSTATUS status;
+
     UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
+
+    event.Size = sizeof(SENTINAL_OBSERVATION_EVENT);
+    event.Version = SENTINAL_OBSERVATION_EVENT_VERSION_1;
+    event.Operation = SentinalObservedCreate;
+
+    status = SentinalValidateObservationEvent(&event);
+    UNREFERENCED_PARAMETER(status);
 
     /* ponytail: observation-only — pass through without altering outcome */
     return FLT_PREOP_SUCCESS_NO_CALLBACK;
@@ -183,9 +193,19 @@ SentinalPreWrite(
     _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
 )
 {
+    SENTINAL_OBSERVATION_EVENT event;
+    NTSTATUS status;
+
     UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
+
+    event.Size = sizeof(SENTINAL_OBSERVATION_EVENT);
+    event.Version = SENTINAL_OBSERVATION_EVENT_VERSION_1;
+    event.Operation = SentinalObservedWrite;
+
+    status = SentinalValidateObservationEvent(&event);
+    UNREFERENCED_PARAMETER(status);
 
     /* ponytail: observation-only — pass through without altering outcome */
     return FLT_PREOP_SUCCESS_NO_CALLBACK;
@@ -198,9 +218,19 @@ SentinalPreSetInformation(
     _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
 )
 {
+    SENTINAL_OBSERVATION_EVENT event;
+    NTSTATUS status;
+
     UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
+
+    event.Size = sizeof(SENTINAL_OBSERVATION_EVENT);
+    event.Version = SENTINAL_OBSERVATION_EVENT_VERSION_1;
+    event.Operation = SentinalObservedSetInformation;
+
+    status = SentinalValidateObservationEvent(&event);
+    UNREFERENCED_PARAMETER(status);
 
     /* ponytail: observation-only — pass through without altering outcome */
     return FLT_PREOP_SUCCESS_NO_CALLBACK;

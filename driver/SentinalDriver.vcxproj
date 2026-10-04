@@ -149,11 +149,13 @@
   <!-- Source files -->
   <ItemGroup>
     <ClCompile Include="src\driver_entry.c" />
+    <ClCompile Include="src\observation_event.c" />
   </ItemGroup>
 
   <!-- Header files (informational; not compiled) -->
   <ItemGroup>
     <ClInclude Include="include\sentinal_driver.h" />
+    <ClInclude Include="include\sentinal_observation_event.h" />
   </ItemGroup>
 
   <!--
