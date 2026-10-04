@@ -120,3 +120,16 @@ add_test(
     COMMAND SentinalProtectionEvaluationContextTests
 )
 set_tests_properties(Sentinal_ProtectionEvaluationContextTests PROPERTIES LABELS "unit")
+
+add_executable(SentinalProtectionEvaluationEngineTests
+    protection_evaluation_engine_tests.cpp
+)
+target_link_libraries(SentinalProtectionEvaluationEngineTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_ProtectionEvaluationEngineTests
+    COMMAND SentinalProtectionEvaluationEngineTests
+)
+set_tests_properties(Sentinal_ProtectionEvaluationEngineTests PROPERTIES LABELS "unit")

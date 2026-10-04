@@ -5,6 +5,7 @@ add_library(SentinelServiceCore STATIC
     src/policy_engine.cpp
     src/protection_decision.cpp
     src/protection_evaluation_context.cpp
+    src/protection_evaluation_engine.cpp
     src/protection_request.cpp
     src/service_core.cpp
     src/target.cpp
