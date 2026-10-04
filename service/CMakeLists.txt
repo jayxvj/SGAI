@@ -1,6 +1,7 @@
 add_library(SentinelServiceCore STATIC
     src/config.cpp
     src/logger.cpp
+    src/path_identity.cpp
     src/policy_engine.cpp
     src/service_core.cpp
     src/target.cpp

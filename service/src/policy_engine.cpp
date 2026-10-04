@@ -3,15 +3,6 @@
 
 namespace sentinel::service {
 
-namespace {
-
-bool startsWith(const std::string& str, const std::string& prefix) {
-    if (str.size() < prefix.size()) return false;
-    return str.compare(0, prefix.size(), prefix) == 0;
-}
-
-} // namespace
-
 SentinalStatus PolicyEngine::addTarget(const ProtectionTarget& target, SentinalTargetId* outId) {
     if (target.path.empty()) {
         return SENTINAL_STATUS_INVALID_PARAMETER;
@@ -22,14 +13,19 @@ SentinalStatus PolicyEngine::addTarget(const ProtectionTarget& target, SentinalT
         return status;
     }
 
-    std::string normPath = normalizePath(target.path);
-    if (hasTarget(normPath)) {
+    PathIdentity pi(target.path);
+    if (!pi.isValid() || pi.isRelative()) {
+        return SENTINAL_STATUS_INVALID_PARAMETER;
+    }
+
+    if (hasTarget(pi)) {
         return SENTINAL_STATUS_ALREADY_EXISTS;
     }
 
     ProtectionTarget t = target;
     t.id = m_nextId++;
-    t.path = normPath;
+    t.path = pi.normalized();
+    t.pathIdentity = pi;
 
     if (outId) {
         *outId = t.id;
@@ -44,9 +40,13 @@ SentinalStatus PolicyEngine::addTarget(const std::string& path, SentinalTargetTy
         return SENTINAL_STATUS_INVALID_PARAMETER;
     }
 
-    std::string normPath = normalizePath(path);
+    PathIdentity pi(path);
+    if (!pi.isValid() || pi.isRelative()) {
+        return SENTINAL_STATUS_INVALID_PARAMETER;
+    }
+
     for (auto& t : m_targets) {
-        if (t.path == normPath) {
+        if (t.pathIdentity == pi) {
             t.type = type;
             t.decision = decision;
             return SENTINAL_STATUS_SUCCESS;
@@ -77,8 +77,8 @@ SentinalStatus PolicyEngine::updateTarget(const ProtectionTarget& target) {
         return SENTINAL_STATUS_NOT_FOUND;
     }
 
-    std::string normPath = normalizePath(target.path);
-    if (normPath != it->path) {
+    PathIdentity pi(target.path);
+    if (!pi.isValid() || pi != it->pathIdentity) {
         return SENTINAL_STATUS_INVALID_PARAMETER;
     }
 
@@ -108,14 +108,13 @@ SentinalStatus PolicyEngine::removeTarget(SentinalTargetId id) {
     return SENTINAL_STATUS_SUCCESS;
 }
 
-SentinalStatus PolicyEngine::removeTarget(const std::string& path) {
-    if (path.empty()) {
+SentinalStatus PolicyEngine::removeTarget(const PathIdentity& path) {
+    if (!path.isValid()) {
         return SENTINAL_STATUS_INVALID_PARAMETER;
     }
 
-    std::string normPath = normalizePath(path);
     auto it = std::find_if(m_targets.begin(), m_targets.end(), [&](const ProtectionTarget& t) {
-        return t.path == normPath;
+        return t.pathIdentity == path;
     });
 
     if (it == m_targets.end()) {
@@ -124,6 +123,19 @@ SentinalStatus PolicyEngine::removeTarget(const std::string& path) {
 
     m_targets.erase(it);
     return SENTINAL_STATUS_SUCCESS;
+}
+
+SentinalStatus PolicyEngine::removeTarget(const std::string& path) {
+    if (path.empty()) {
+        return SENTINAL_STATUS_INVALID_PARAMETER;
+    }
+
+    PathIdentity pi(path);
+    if (!pi.isValid()) {
+        return SENTINAL_STATUS_INVALID_PARAMETER;
+    }
+
+    return removeTarget(pi);
 }
 
 bool PolicyEngine::hasTarget(SentinalTargetId id) const {
@@ -136,15 +148,27 @@ bool PolicyEngine::hasTarget(SentinalTargetId id) const {
     });
 }
 
+bool PolicyEngine::hasTarget(const PathIdentity& path) const {
+    if (!path.isValid()) {
+        return false;
+    }
+
+    return std::any_of(m_targets.begin(), m_targets.end(), [&](const ProtectionTarget& t) {
+        return t.pathIdentity == path;
+    });
+}
+
 bool PolicyEngine::hasTarget(const std::string& path) const {
     if (path.empty()) {
         return false;
     }
 
-    std::string normPath = normalizePath(path);
-    return std::any_of(m_targets.begin(), m_targets.end(), [&](const ProtectionTarget& t) {
-        return t.path == normPath;
-    });
+    PathIdentity pi(path);
+    if (!pi.isValid()) {
+        return false;
+    }
+
+    return hasTarget(pi);
 }
 
 SentinalStatus PolicyEngine::getTarget(SentinalTargetId id, ProtectionTarget& outTarget) const {
@@ -164,14 +188,13 @@ SentinalStatus PolicyEngine::getTarget(SentinalTargetId id, ProtectionTarget& ou
     return SENTINAL_STATUS_SUCCESS;
 }
 
-SentinalStatus PolicyEngine::getTarget(const std::string& path, ProtectionTarget& outTarget) const {
-    if (path.empty()) {
+SentinalStatus PolicyEngine::getTarget(const PathIdentity& path, ProtectionTarget& outTarget) const {
+    if (!path.isValid()) {
         return SENTINAL_STATUS_INVALID_PARAMETER;
     }
 
-    std::string normPath = normalizePath(path);
     auto it = std::find_if(m_targets.begin(), m_targets.end(), [&](const ProtectionTarget& t) {
-        return t.path == normPath;
+        return t.pathIdentity == path;
     });
 
     if (it == m_targets.end()) {
@@ -180,6 +203,19 @@ SentinalStatus PolicyEngine::getTarget(const std::string& path, ProtectionTarget
 
     outTarget = *it;
     return SENTINAL_STATUS_SUCCESS;
+}
+
+SentinalStatus PolicyEngine::getTarget(const std::string& path, ProtectionTarget& outTarget) const {
+    if (path.empty()) {
+        return SENTINAL_STATUS_INVALID_PARAMETER;
+    }
+
+    PathIdentity pi(path);
+    if (!pi.isValid()) {
+        return SENTINAL_STATUS_INVALID_PARAMETER;
+    }
+
+    return getTarget(pi, outTarget);
 }
 
 std::vector<ProtectionTarget> PolicyEngine::listTargets() const {
@@ -194,12 +230,10 @@ size_t PolicyEngine::getTargetCount() const {
     return m_targets.size();
 }
 
-SentinalDecision PolicyEngine::evaluate(const std::string& path, SentinalFileOp op, SentinalDecision defaultDecision) const {
-    if (op == SENTINAL_OP_NONE || path.empty()) {
+SentinalDecision PolicyEngine::evaluate(const PathIdentity& path, SentinalFileOp op, SentinalDecision defaultDecision) const {
+    if (op == SENTINAL_OP_NONE || !path.isValid()) {
         return defaultDecision;
     }
-
-    std::string normPath = normalizePath(path);
 
     for (const auto& target : m_targets) {
         if (!target.enabled) {
@@ -211,32 +245,30 @@ SentinalDecision PolicyEngine::evaluate(const std::string& path, SentinalFileOp 
         }
 
         if (target.type == SENTINAL_TARGET_FILE) {
-            if (normPath == target.path) {
+            if (path == target.pathIdentity) {
                 return target.decision;
             }
         } else if (target.type == SENTINAL_TARGET_DIRECTORY) {
-            if (normPath == target.path) {
+            if (path == target.pathIdentity || target.pathIdentity.isDirectParentOf(path)) {
                 return target.decision;
-            }
-            std::string prefix = target.path + "/";
-            if (startsWith(normPath, prefix)) {
-                std::string remainder = normPath.substr(prefix.size());
-                if (remainder.find('/') == std::string::npos) {
-                    return target.decision;
-                }
             }
         } else if (target.type == SENTINAL_TARGET_DIRECTORY_RECURSIVE) {
-            if (normPath == target.path) {
-                return target.decision;
-            }
-            std::string prefix = target.path + "/";
-            if (startsWith(normPath, prefix)) {
+            if (path == target.pathIdentity || path.isDescendantOf(target.pathIdentity)) {
                 return target.decision;
             }
         }
     }
 
     return defaultDecision;
+}
+
+SentinalDecision PolicyEngine::evaluate(const std::string& path, SentinalFileOp op, SentinalDecision defaultDecision) const {
+    if (op == SENTINAL_OP_NONE || path.empty()) {
+        return defaultDecision;
+    }
+
+    PathIdentity pi(path);
+    return evaluate(pi, op, defaultDecision);
 }
 
 } // namespace sentinel::service

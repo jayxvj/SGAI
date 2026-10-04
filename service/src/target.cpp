@@ -7,6 +7,17 @@ SentinalStatus ProtectionTarget::validate() const {
         return SENTINAL_STATUS_INVALID_PARAMETER;
     }
 
+    PathIdentity pi(path);
+    if (!pi.isValid()) {
+        return SENTINAL_STATUS_INVALID_PARAMETER;
+    }
+
+    // PolicyEngine protection targets reject relative paths because protection
+    // policy must not depend on the process current working directory.
+    if (pi.isRelative()) {
+        return SENTINAL_STATUS_INVALID_PARAMETER;
+    }
+
     if (type != SENTINAL_TARGET_FILE &&
         type != SENTINAL_TARGET_DIRECTORY &&
         type != SENTINAL_TARGET_DIRECTORY_RECURSIVE) {
@@ -31,26 +42,8 @@ SentinalStatus ProtectionTarget::validate() const {
 }
 
 std::string normalizePath(const std::string& input) {
-    if (input.empty()) {
-        return "";
-    }
-
-    std::string result = input;
-    for (char& c : result) {
-        if (c == '\\') {
-            c = '/';
-        }
-    }
-
-    while (result.size() > 1 && result.back() == '/') {
-        // Preserve drive root like "C:/"
-        if (result.size() == 3 && result[1] == ':') {
-            break;
-        }
-        result.pop_back();
-    }
-
-    return result;
+    PathIdentity pi(input);
+    return pi.normalized();
 }
 
 } // namespace sentinel::service

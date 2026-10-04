@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdint>
 #include <sentinal/common.h>
+#include "service/path_identity.h"
 
 namespace sentinel::service {
 
@@ -16,6 +17,7 @@ constexpr uint32_t SENTINAL_ALL_FILE_OPS =
 struct ProtectionTarget {
     SentinalTargetId id = SENTINAL_INVALID_TARGET_ID;
     std::string path;
+    PathIdentity pathIdentity;
     SentinalTargetType type = SENTINAL_TARGET_UNKNOWN;
     uint32_t opMask = SENTINAL_ALL_FILE_OPS;
     SentinalDecision decision = SENTINAL_DECISION_DENY;

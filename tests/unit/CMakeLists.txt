@@ -56,3 +56,15 @@ add_test(
 )
 set_tests_properties(Sentinal_TargetModelTests PROPERTIES LABELS "unit")
 
+add_executable(SentinalPathIdentityTests
+    path_identity_tests.cpp
+)
+target_link_libraries(SentinalPathIdentityTests PRIVATE
+    SentinelServiceCore
+)
+
+add_test(
+    NAME Sentinal_PathIdentityTests
+    COMMAND SentinalPathIdentityTests
+)
+set_tests_properties(Sentinal_PathIdentityTests PROPERTIES LABELS "unit")
