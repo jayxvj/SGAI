@@ -32,6 +32,7 @@
  */
 
 #include "sentinal_communication_port.h"
+#include "sentinal_message_transport.h"
 
 /* =========================================================================
  * Internal Communication State
@@ -92,7 +93,7 @@ SentinalInitializeCommunicationPort(
      * Create the communication server port.
      *
      * MaxConnections = 1: Filter Manager enforces at most one concurrent connection.
-     * MessageNotifyCallback = NULL: No message processing in Phase 1.30.
+     * MessageNotifyCallback = SentinalPortMessageNotify: Transport boundary message validation.
      * ServerPortCookie = NULL: No per-server cookie required.
      */
     status = FltCreateCommunicationPort(
@@ -102,7 +103,7 @@ SentinalInitializeCommunicationPort(
         NULL,
         SentinalPortConnectNotify,
         SentinalPortDisconnectNotify,
-        NULL, /* MessageNotifyCallback — strictly NULL in Phase 1.30 */
+        SentinalPortMessageNotify,
         1     /* MaxConnections */
     );
 

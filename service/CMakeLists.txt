@@ -43,7 +43,12 @@ target_include_directories(SentinelServiceCore PUBLIC
 target_link_libraries(SentinelServiceCore PUBLIC
     SentinalShared
     SentinalDriverContract
+    SentinalDriverUnicodeContract
 )
+
+if (WIN32)
+    target_link_libraries(SentinelServiceCore PUBLIC fltlib)
+endif()
 
 add_executable(SentinelService
     src/main.cpp

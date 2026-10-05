@@ -171,6 +171,72 @@ static void test_output_unchanged_on_invalid_response() {
     assert(resp.status() == DriverProtectionResponseStatus::SUCCESS);
 }
 
+static void test_valid_request_to_unicode_contract() {
+    PathIdentity path("C:/Protected/document.docx");
+    ProtectionEvaluationContext ctx(ProtectionRequestSource::USER_MODE);
+    DriverProtectionRequest req(500, path, SENTINAL_OP_WRITE, ctx);
+
+    SentinalDriverUnicodeProtectionRequest contract;
+    std::memset(&contract, 0xFF, sizeof(contract));
+
+    SentinalStatus status = DriverContractAdapter::toUnicodeContract(req, contract);
+    assert(status == SENTINAL_STATUS_SUCCESS);
+
+    // Header checks
+    assert(contract.header.size == sizeof(SentinalDriverUnicodeProtectionRequest));
+    assert(contract.header.majorVersion == SENTINAL_DRIVER_UNICODE_CONTRACT_MAJOR_VERSION);
+    assert(contract.header.minorVersion == SENTINAL_DRIVER_UNICODE_CONTRACT_MINOR_VERSION);
+    assert(contract.header.messageType == SENTINAL_DRIVER_UNICODE_MESSAGE_PROTECTION_REQUEST);
+    assert(contract.header.reserved == 0);
+
+    // Payload checks
+    assert(contract.requestId == 500);
+    assert(contract.operation == static_cast<uint32_t>(SENTINAL_OP_WRITE));
+    assert(contract.source == SENTINAL_DRIVER_UNICODE_SOURCE_USER_MODE);
+    assert(contract.pathLength == std::strlen("C:/Protected/document.docx"));
+    assert(contract.path[0] == static_cast<uint16_t>('C'));
+    assert(contract.path[contract.pathLength] == 0x0000u);
+    assert(contract.reserved0 == 0);
+    assert(contract.reserved == 0);
+    assert(contract.reserved1 == 0);
+    assert(SentinalDriverUnicodeValidateProtectionRequest(&contract) == SENTINAL_STATUS_SUCCESS);
+}
+
+static void test_valid_unicode_response_to_semantic_response() {
+    SentinalDriverUnicodeProtectionResponse respContract;
+    std::memset(&respContract, 0, sizeof(respContract));
+    respContract.header.size = sizeof(respContract);
+    respContract.header.majorVersion = SENTINAL_DRIVER_UNICODE_CONTRACT_MAJOR_VERSION;
+    respContract.header.minorVersion = SENTINAL_DRIVER_UNICODE_CONTRACT_MINOR_VERSION;
+    respContract.header.messageType = SENTINAL_DRIVER_UNICODE_MESSAGE_PROTECTION_RESPONSE;
+    respContract.requestId = 777;
+    respContract.decision = static_cast<uint32_t>(SENTINAL_DECISION_ALLOW);
+    respContract.status = static_cast<uint32_t>(SENTINAL_STATUS_SUCCESS);
+
+    DriverProtectionResponse resp;
+    SentinalStatus status = DriverContractAdapter::fromUnicodeContract(respContract, resp);
+    assert(status == SENTINAL_STATUS_SUCCESS);
+    assert(resp.requestId() == 777);
+    assert(resp.decision() == SENTINAL_DECISION_ALLOW);
+    assert(resp.status() == DriverProtectionResponseStatus::SUCCESS);
+}
+
+static void test_invalid_unicode_response_rejected() {
+    SentinalDriverUnicodeProtectionResponse badContract;
+    std::memset(&badContract, 0, sizeof(badContract));
+    badContract.header.size = sizeof(badContract);
+    badContract.header.majorVersion = SENTINAL_DRIVER_UNICODE_CONTRACT_MAJOR_VERSION;
+    badContract.header.minorVersion = SENTINAL_DRIVER_UNICODE_CONTRACT_MINOR_VERSION;
+    badContract.header.messageType = SENTINAL_DRIVER_UNICODE_MESSAGE_PROTECTION_RESPONSE;
+    badContract.requestId = 777;
+    badContract.decision = 99; // invalid decision
+    badContract.status = static_cast<uint32_t>(SENTINAL_STATUS_SUCCESS);
+
+    DriverProtectionResponse resp;
+    SentinalStatus status = DriverContractAdapter::fromUnicodeContract(badContract, resp);
+    assert(status == SENTINAL_STATUS_INVALID_PARAMETER);
+}
+
 int main() {
     std::cout << "[DriverContractAdapter Tests] Running..." << std::endl;
 
@@ -183,6 +249,10 @@ int main() {
     test_valid_rejected_response_from_contract();
     test_invalid_response_rejected();
     test_output_unchanged_on_invalid_response();
+
+    test_valid_request_to_unicode_contract();
+    test_valid_unicode_response_to_semantic_response();
+    test_invalid_unicode_response_rejected();
 
     std::cout << "[DriverContractAdapter Tests] All tests passed." << std::endl;
     return 0;
