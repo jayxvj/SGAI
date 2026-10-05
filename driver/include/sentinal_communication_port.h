@@ -28,6 +28,8 @@
 #define SENTINAL_COMMUNICATION_PORT_H
 
 #include <fltKernel.h>
+#include "sentinal_observation_event.h"
+#include "sentinal_message_transport.h"
 
 /* =========================================================================
  * Port Name Definition
@@ -128,6 +130,37 @@ SentinalPortDisconnectNotify(
 BOOLEAN
 SentinalIsClientConnected(
     VOID
+);
+
+/* =========================================================================
+ * Phase 1.32 — Kernel Observation to Transport Integration
+ * ========================================================================= */
+
+/*
+ * SentinalSendWriteObservation
+ *
+ * Connects a validated IRP_MJ_WRITE observation event to the kernel->user
+ * message transport.
+ *
+ * Steps (internal):
+ *   1. Early-exit if no user-mode client is connected (pass-through).
+ *   2. Generate a nonzero monotonic requestId.
+ *   3. Convert the observation event to a Unicode protection request via
+ *      SentinalObservationToUnicodeDriverRequest.
+ *   4. Send via SentinalSendProtectionRequest (FltSendMessage, 1000ms timeout).
+ *   5. Validate the response (requestId match, contract validity).
+ *   6. Discard the transport result — caller ALWAYS passes through.
+ *
+ * The filesystem operation is NEVER blocked, denied, or modified regardless
+ * of the transport outcome. This function is purely diagnostic transport.
+ *
+ * IRQL: <= APC_LEVEL (same as FltSendMessage and FltGetFileNameInformation).
+ */
+_IRQL_requires_max_(APC_LEVEL)
+VOID
+SentinalSendWriteObservation(
+    _In_ PFLT_FILTER                      Filter,
+    _In_ const SENTINAL_OBSERVATION_EVENT *Event
 );
 
 #endif /* SENTINAL_COMMUNICATION_PORT_H */

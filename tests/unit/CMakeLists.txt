@@ -462,3 +462,30 @@ add_test(
     COMMAND SentinalDriverUnicodeContractTests
 )
 set_tests_properties(Sentinal_DriverUnicodeContractTests PROPERTIES LABELS "unit")
+
+# ---------------------------------------------------------------------------
+# Phase 1.32 — Kernel Observation to Transport Integration tests
+#
+# Tests the conversion boundary:
+#   SENTINAL_OBSERVATION_EVENT -> SentinalObservationToUnicodeDriverRequest
+#
+# Uses the user-mode shim definitions in sentinal_driver_unicode_contract_adapter.h
+# to compile the shared kernel adapter source in user-mode test context.
+# No kernel is loaded. No driver is installed.
+# ---------------------------------------------------------------------------
+add_executable(SentinalKernelObservationTransportTests
+    kernel_observation_transport_integration_tests.cpp
+    ${CMAKE_SOURCE_DIR}/driver/src/driver_unicode_contract_adapter.c
+)
+target_include_directories(SentinalKernelObservationTransportTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/driver/include
+)
+target_link_libraries(SentinalKernelObservationTransportTests PRIVATE
+    SentinalDriverUnicodeContract
+)
+
+add_test(
+    NAME Sentinal_KernelObservationTransportTests
+    COMMAND SentinalKernelObservationTransportTests
+)
+set_tests_properties(Sentinal_KernelObservationTransportTests PROPERTIES LABELS "unit")

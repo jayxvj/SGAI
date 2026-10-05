@@ -3,7 +3,7 @@
  *
  * Sentinal AI minifilter driver — DriverEntry and filter lifecycle.
  *
- * Phase 1.30 — Filter Manager Communication Port Foundation
+ * Phase 1.32 — Kernel Observation to Real User-Mode Transport Integration
  *
  * Responsibilities:
  *   - Register the minifilter with Filter Manager (FltRegisterFilter)
@@ -12,7 +12,9 @@
  *   - Clean up communication port and unregister on unload (SentinalDriverUnload)
  *   - Construct and validate kernel observation events for IRP_MJ_CREATE,
  *     IRP_MJ_WRITE, and IRP_MJ_SET_INFORMATION in pre-operation callbacks
- *   - Pass through all operations (FLT_PREOP_SUCCESS_NO_CALLBACK)
+ *   - For IRP_MJ_WRITE only: send observation to user-mode via FltSendMessage
+ *     (SentinalSendWriteObservation). Transport result is diagnostic only.
+ *   - Always return FLT_PREOP_SUCCESS_NO_CALLBACK (filesystem write unmodified)
  *
  * This file contains NO:
  *   - file blocking or access denial
@@ -20,7 +22,6 @@
  *   - parameter modification or redirection
  *   - policy evaluation
  *   - encryption or decryption
- *   - message payload processing
  *   - IOCTL handling
  *   - kernel filesystem calls or re-entrant I/O
  */
@@ -226,11 +227,22 @@ SentinalPreWrite(
 )
 {
     SENTINAL_OBSERVATION_EVENT event;
-    NTSTATUS status;
+    NTSTATUS                   status;
 
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
 
+    /*
+     * Phase 1.32: Build the observation event and acquire the normalized path.
+     * On success: convert to Unicode request and send via FltSendMessage
+     *   through SentinalSendWriteObservation.
+     * On path failure: silently discard; WRITE continues unchanged.
+     *
+     * IRQL constraint: SentinalAcquireObservationPath and FltSendMessage
+     * both require IRQL <= APC_LEVEL. Pre-operation callbacks execute at
+     * PASSIVE_LEVEL or APC_LEVEL. No blocking synchronization is introduced.
+     * FltSendMessage has a bounded 1000ms timeout; it never waits indefinitely.
+     */
     RtlZeroMemory(&event, sizeof(event));
     event.Size      = sizeof(SENTINAL_OBSERVATION_EVENT);
     event.Version   = SENTINAL_OBSERVATION_EVENT_VERSION_1;
@@ -239,10 +251,25 @@ SentinalPreWrite(
     status = SentinalAcquireObservationPath(Data, &event);
     if (NT_SUCCESS(status)) {
         status = SentinalValidateObservationEvent(&event);
-        UNREFERENCED_PARAMETER(status);
+        if (NT_SUCCESS(status)) {
+            /*
+             * Observation event is valid. Attempt kernel->user transport.
+             * SentinalSendWriteObservation:
+             *   - Returns immediately if no client connected (no-op).
+             *   - Generates requestId, converts event, calls FltSendMessage.
+             *   - Discards transport result (diagnostic only).
+             * The WRITE always continues regardless of transport outcome.
+             */
+            SentinalSendWriteObservation(g_SentinalFilter, &event);
+        }
     }
 
-    /* ponytail: observation-only — pass through without altering outcome */
+    /*
+     * ALWAYS return FLT_PREOP_SUCCESS_NO_CALLBACK.
+     * Do NOT return FLT_PREOP_COMPLETE or FLT_PREOP_PENDING.
+     * Do NOT modify Data->IoStatus.
+     * The filesystem write continues unconditionally.
+     */
     return FLT_PREOP_SUCCESS_NO_CALLBACK;
 }
 

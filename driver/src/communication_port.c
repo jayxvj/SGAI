@@ -33,6 +33,7 @@
 
 #include "sentinal_communication_port.h"
 #include "sentinal_message_transport.h"
+#include "sentinal_driver_unicode_contract_adapter.h"
 
 /* =========================================================================
  * Internal Communication State
@@ -270,4 +271,111 @@ SentinalIsClientConnected(
 )
 {
     return (g_CommunicationState.ClientPort != NULL) ? TRUE : FALSE;
+}
+
+/* =========================================================================
+ * SentinalSendWriteObservation (Phase 1.32)
+ *
+ * Integration point: connects a validated IRP_MJ_WRITE observation event
+ * to the existing kernel->user FltSendMessage transport.
+ *
+ * The function is fire-and-forget from the filesystem callback perspective.
+ * The filesystem WRITE always continues regardless of transport outcome.
+ *
+ * Synchronization note:
+ *   g_CommunicationState.ClientPort is read without a lock by the same
+ *   SentinalIsClientConnected() pattern used throughout this file.
+ *   FltSendMessage itself handles concurrent port teardown safely via the
+ *   Filter Manager reference-counted port model.
+ * ========================================================================= */
+
+_IRQL_requires_max_(APC_LEVEL)
+VOID
+SentinalSendWriteObservation(
+    _In_ PFLT_FILTER                      Filter,
+    _In_ const SENTINAL_OBSERVATION_EVENT *Event
+)
+{
+    NTSTATUS                               status;
+    ULONGLONG                              requestId;
+    SentinalDriverUnicodeProtectionRequest request;
+    SentinalDriverUnicodeProtectionResponse response;
+
+    if (Filter == NULL || Event == NULL) {
+        return;
+    }
+
+    /*
+     * 1. Early-exit if no user-mode client is connected.
+     *    Avoids generating a requestId or performing conversion when nobody
+     *    is listening. Pass-through continues unconditionally.
+     */
+    if (g_CommunicationState.ClientPort == NULL) {
+        return;
+    }
+
+    /*
+     * 2. Generate a nonzero monotonic request ID.
+     *    Atomic; safe at any IRQL.
+     */
+    requestId = SentinalGenerateRequestId();
+
+    /*
+     * 3. Convert the observation event to the Unicode contract format.
+     *    SentinalObservationToUnicodeDriverRequest:
+     *      - Validates the event (size, version, operation, path length).
+     *      - Maps SentinalObservedWrite -> SENTINAL_OP_WRITE.
+     *      - Rejects CREATE and SET_INFORMATION (STATUS_NOT_SUPPORTED).
+     *      - Copies the UTF-16 path without narrowing.
+     *      - Validates the resulting request.
+     *
+     *    If conversion fails (unsupported operation, bad path, etc.),
+     *    silently discard and pass through the write.
+     */
+    RtlZeroMemory(&request, sizeof(request));
+    status = SentinalObservationToUnicodeDriverRequest(Event, requestId, &request);
+    if (!NT_SUCCESS(status)) {
+        /* Conversion failed — not a transport error, just unsupported/invalid.
+         * Filesystem write continues unchanged. */
+        return;
+    }
+
+    /*
+     * 4. Send the request to user-mode via FltSendMessage.
+     *    Bounded timeout: SENTINAL_TRANSPORT_DEFAULT_TIMEOUT_MS (1000 ms).
+     *    On timeout, STATUS_TIMEOUT is returned — NEVER converted to ALLOW.
+     *
+     *    ClientPort is passed by address (&g_CommunicationState.ClientPort)
+     *    as required by FltSendMessage's port-reference semantics.
+     *    Filter Manager handles concurrent port teardown safely.
+     *
+     *    Transport result is diagnostic only: the WRITE always continues.
+     */
+    RtlZeroMemory(&response, sizeof(response));
+    status = SentinalSendProtectionRequest(
+        Filter,
+        &g_CommunicationState.ClientPort,
+        &request,
+        &response,
+        SENTINAL_TRANSPORT_DEFAULT_TIMEOUT_MS
+    );
+
+    /*
+     * 5. Transport result handling.
+     *    In Phase 1.32 the result is ONLY diagnostic. The WRITE is never
+     *    blocked, denied, or modified regardless of:
+     *      - STATUS_SUCCESS with ALLOW response
+     *      - STATUS_SUCCESS with DENY response (still passes through)
+     *      - STATUS_TIMEOUT
+     *      - STATUS_DATA_ERROR (mismatched requestId or malformed response)
+     *      - STATUS_INFO_LENGTH_MISMATCH
+     *      - Any other transport failure
+     *
+     *    ponytail: transport-result discarded here; upgrade path = policy
+     *    enforcement phase where status/response.decision drives a real action.
+     */
+    (VOID)status;
+    (VOID)response;
+
+    /* Filesystem write ALWAYS continues regardless of transport outcome. */
 }
